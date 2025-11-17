@@ -11,6 +11,12 @@ import { AMM_ABI } from '@/utils/abi'
 import { formatEther, erc20Abi } from 'viem'
 import { useTokenBalances } from '@/hooks/useTokenBalance'
 import { ALL_TOKENS } from '@/utils/tokens'
+import { checkEnvironmentVariables } from '@/utils/checkEnv'
+
+// Check environment variables on mount
+if (typeof window !== 'undefined') {
+  checkEnvironmentVariables()
+}
 
 const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
 const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`

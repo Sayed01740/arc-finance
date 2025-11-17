@@ -12,13 +12,9 @@ import { AMM_ABI } from '@/utils/abi'
 import { Token, ALL_TOKENS, findTokenByAddress } from '@/utils/tokens'
 import { findPoolForPair, findSwapRoute, canSwapDirectly } from '@/utils/pools'
 import { useTokenBalance } from '@/hooks/useTokenBalance'
+import { BalanceDebug } from '@/components/BalanceDebug'
+import { TestBalance } from '@/components/TestBalance'
 import toast from 'react-hot-toast'
-
-// Debug token config in development
-if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  const { debugTokenConfig } = require('@/utils/debug')
-  debugTokenConfig()
-}
 
 // Default to first available tokens
 const DEFAULT_FROM_TOKEN = ALL_TOKENS[0] || null
@@ -79,6 +75,28 @@ export default function SwapPage() {
   // Use custom hook for better balance handling
   const { formattedBalance: balanceFromFormatted, isLoading: isLoadingBalanceFrom, error: balanceFromError } = useTokenBalance(tokenFrom, address)
   const { formattedBalance: balanceToFormatted, isLoading: isLoadingBalanceTo, error: balanceToError } = useTokenBalance(tokenTo, address)
+
+  // Debug: Log balance fetching status
+  useEffect(() => {
+    if (tokenFrom && address) {
+      console.log(`[Swap] Fetching balance for ${tokenFrom.symbol}:`, {
+        address: tokenFrom.address,
+        user: address,
+        balance: balanceFromFormatted,
+        isLoading: isLoadingBalanceFrom,
+        error: balanceFromError?.message,
+      })
+    }
+    if (tokenTo && address) {
+      console.log(`[Swap] Fetching balance for ${tokenTo.symbol}:`, {
+        address: tokenTo.address,
+        user: address,
+        balance: balanceToFormatted,
+        isLoading: isLoadingBalanceTo,
+        error: balanceToError?.message,
+      })
+    }
+  }, [tokenFrom, tokenTo, address, balanceFromFormatted, balanceToFormatted, isLoadingBalanceFrom, isLoadingBalanceTo, balanceFromError, balanceToError])
 
   const { data: amountOut } = useReadContract({
     address: poolAddress,
@@ -195,12 +213,23 @@ export default function SwapPage() {
   // Log errors for debugging
   useEffect(() => {
     if (balanceFromError) {
-      console.error('Error fetching balance for tokenFrom:', balanceFromError)
+      console.error('[Swap] Error fetching balance for tokenFrom:', balanceFromError)
+      console.error('[Swap] TokenFrom:', tokenFrom)
+      console.error('[Swap] Address:', address)
     }
     if (balanceToError) {
-      console.error('Error fetching balance for tokenTo:', balanceToError)
+      console.error('[Swap] Error fetching balance for tokenTo:', balanceToError)
+      console.error('[Swap] TokenTo:', tokenTo)
     }
-  }, [balanceFromError, balanceToError])
+    if (!isLoadingBalanceFrom && !isLoadingBalanceTo) {
+      console.log('[Swap] Balances:', {
+        tokenFrom: tokenFrom?.symbol,
+        balanceFrom: balanceFromFormatted,
+        tokenTo: tokenTo?.symbol,
+        balanceTo: balanceToFormatted,
+      })
+    }
+  }, [balanceFromError, balanceToError, balanceFromFormatted, balanceToFormatted, tokenFrom, tokenTo, address, isLoadingBalanceFrom, isLoadingBalanceTo])
 
   if (!isConnected) {
     return (
@@ -219,6 +248,9 @@ export default function SwapPage() {
         <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-gray-100">Swap Tokens</h1>
         <p className="text-gray-600 dark:text-gray-400">Trade tokens instantly with low slippage</p>
       </div>
+
+      {/* Test Balance Component */}
+      {isConnected && <TestBalance />}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

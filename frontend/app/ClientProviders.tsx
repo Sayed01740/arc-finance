@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import { config } from '@/wagmi.config'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Navbar } from '@/components/Navbar'
+import { DebugPanel } from '@/components/DebugPanel'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                 },
               }}
             />
+            <DebugPanel />
           </div>
         </ThemeProvider>
       </QueryClientProvider>

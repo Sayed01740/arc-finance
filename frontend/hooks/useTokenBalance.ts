@@ -25,6 +25,20 @@ export function useTokenBalance(token: Token | null, address?: Address) {
     },
   })
 
+  // Debug logging
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    if (token && userAddress) {
+      console.log(`[useTokenBalance] Fetching ${token.symbol} balance for`, {
+        token: token.address,
+        user: userAddress,
+        enabled: !!token?.address && !!userAddress && token.address !== '0x0000000000000000000000000000000000000000',
+        balance: balance?.toString(),
+        error: error?.message,
+        isLoading,
+      })
+    }
+  }
+
   // Format balance using token decimals
   const formattedBalance = balance && token
     ? formatUnits(balance, token.decimals)

@@ -6,7 +6,11 @@
     "compile": "hardhat compile",
     "deploy:token": "hardhat run scripts/deployToken.ts --network arc",
     "deploy:amm": "hardhat run scripts/deployAMM.ts --network arc",
+    "deploy:usdc-tka": "hardhat run scripts/deployUSDC_TKA_Pool.ts --network arc",
+    "deploy:usdt-tka": "hardhat run scripts/deployUSDT_TKA_Pool.ts --network arc",
+    "deploy:farming": "hardhat run scripts/deployFarming.ts --network arc",
     "add-liquidity": "hardhat run scripts/addLiquidity.ts --network arc",
+    "add-liquidity-pool": "hardhat run scripts/addLiquidityToPool.ts --network arc",
     "node": "hardhat node",
     "test": "hardhat test"
   },

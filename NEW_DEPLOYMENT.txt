@@ -1,0 +1,44 @@
+═══════════════════════════════════════════════════════
+   🚀 NEW SMART CONTRACT DEPLOYMENT - ARC TESTNET
+═══════════════════════════════════════════════════════
+
+✅ DEPLOYMENT SUCCESSFUL!
+
+Deploying Account: 0xC351Fd8F7f82452b3e531490b5FFa8b80a45Fa04
+Account Balance: 9.599139247336562777 USDC
+
+═══════════════════════════════════════════════════════
+
+📦 NEWLY DEPLOYED CONTRACTS:
+
+1️⃣  Token A (TKA)
+   Address: 0xf8BF7E1938886b6d8D7e94A93FDd7d857E425496
+   Explorer: https://testnet.arcscan.app/address/0xf8BF7E1938886b6d8D7e94A93FDd7d857E425496
+
+2️⃣  Token B (TKB)
+   Address: 0xe25A6bcDAFB93762fD727d1375403506F1e4d381
+   Explorer: https://testnet.arcscan.app/address/0xe25A6bcDAFB93762fD727d1375403506F1e4d381
+
+═══════════════════════════════════════════════════════
+
+📋 NEXT STEPS:
+
+1. Update .env file with new addresses:
+   TOKEN_A_ADDRESS=0xf8BF7E1938886b6d8D7e94A93FDd7d857E425496
+   TOKEN_B_ADDRESS=0xe25A6bcDAFB93762fD727d1375403506F1e4d381
+
+2. Deploy AMM Contract:
+   npx hardhat run scripts/deployAMM.ts --network arc
+
+3. Add Liquidity:
+   npx hardhat run scripts/addLiquidity.ts --network arc
+
+4. Update Frontend .env.local with new addresses
+
+═══════════════════════════════════════════════════════
+
+🔗 Network: Arc Testnet (Chain ID: 5042002)
+🌐 Explorer: https://testnet.arcscan.app
+
+═══════════════════════════════════════════════════════
+

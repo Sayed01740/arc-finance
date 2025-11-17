@@ -10,25 +10,46 @@ import { Button } from '@/components/ui/Button'
 import { TokenSelector } from '@/components/TokenSelector'
 import { AMM_ABI } from '@/utils/abi'
 import { Token, ALL_TOKENS, findTokenByAddress } from '@/utils/tokens'
+import { findPoolForPair, findSwapRoute, canSwapDirectly } from '@/utils/pools'
 import toast from 'react-hot-toast'
 
-const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
-const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`
-const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`
+// Default to first available tokens
+const DEFAULT_FROM_TOKEN = ALL_TOKENS[0] || null
+const DEFAULT_TO_TOKEN = ALL_TOKENS[1] || null
 
-// Get tokens that are actually supported by the AMM pool
-const AMM_TOKEN_A = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_A_ADDRESS?.toLowerCase()) || null
-const AMM_TOKEN_B = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_B_ADDRESS?.toLowerCase()) || null
+// Check if a token pair can be swapped (directly or via bridge)
+function canSwapTokens(tokenFrom: Token | null, tokenTo: Token | null): {
+  canSwap: boolean
+  route: 'direct' | 'via-bridge' | null
+  poolAddress?: `0x${string}`
+  pools?: Array<{ address: `0x${string}` }>
+} {
+  if (!tokenFrom || !tokenTo) {
+    return { canSwap: false, route: null }
+  }
 
-// Default to AMM supported tokens (TKA/TKB)
-const DEFAULT_FROM_TOKEN = AMM_TOKEN_A || ALL_TOKENS[2] || null
-const DEFAULT_TO_TOKEN = AMM_TOKEN_B || ALL_TOKENS[3] || null
+  // Check direct swap
+  const directPool = findPoolForPair(tokenFrom.address, tokenTo.address)
+  if (directPool) {
+    return {
+      canSwap: true,
+      route: 'direct',
+      poolAddress: directPool.address,
+      pools: [{ address: directPool.address }],
+    }
+  }
 
-// Check if a token is supported by the AMM
-function isTokenSupported(token: Token | null): boolean {
-  if (!token || !TOKEN_A_ADDRESS || !TOKEN_B_ADDRESS) return false
-  const tokenAddr = token.address.toLowerCase()
-  return tokenAddr === TOKEN_A_ADDRESS.toLowerCase() || tokenAddr === TOKEN_B_ADDRESS.toLowerCase()
+  // Check via bridge (TKA)
+  const route = findSwapRoute(tokenFrom.address, tokenTo.address)
+  if (route) {
+    return {
+      canSwap: true,
+      route: route.route,
+      pools: route.pools.map(p => ({ address: p.address })),
+    }
+  }
+
+  return { canSwap: false, route: null }
 }
 
 export default function SwapPage() {
@@ -44,6 +65,10 @@ export default function SwapPage() {
   const tokenFromAddress = tokenFrom?.address as `0x${string}`
   const tokenToAddress = tokenTo?.address as `0x${string}`
 
+  // Find pool for this token pair
+  const swapInfo = canSwapTokens(tokenFrom, tokenTo)
+  const poolAddress = swapInfo.poolAddress || swapInfo.pools?.[0]?.address
+
   const { data: balanceFrom } = useReadContract({
     address: tokenFromAddress,
     abi: erc20Abi,
@@ -56,22 +81,22 @@ export default function SwapPage() {
   })
 
   const { data: amountOut } = useReadContract({
-    address: AMM_ADDRESS,
+    address: poolAddress,
     abi: AMM_ABI,
     functionName: 'getAmountOut',
     args: amountFrom && parseFloat(amountFrom) > 0 ? [parseEther(amountFrom), tokenFromAddress] : undefined,
     query: {
-      enabled: !!amountFrom && parseFloat(amountFrom) > 0 && !!tokenFromAddress && !!AMM_ADDRESS && isTokenSupported(tokenFrom),
+      enabled: !!amountFrom && parseFloat(amountFrom) > 0 && !!tokenFromAddress && !!poolAddress && swapInfo.canSwap && swapInfo.route === 'direct',
     },
   })
 
   const { data: reserves } = useReadContract({
-    address: AMM_ADDRESS,
+    address: poolAddress,
     abi: AMM_ABI,
     functionName: 'getReserves',
     query: {
       refetchInterval: 5000,
-      enabled: !!AMM_ADDRESS,
+      enabled: !!poolAddress && swapInfo.canSwap && swapInfo.route === 'direct',
     },
   })
 
@@ -106,13 +131,21 @@ export default function SwapPage() {
       return
     }
 
-    // Validate tokens are supported by AMM
-    if (!isTokenSupported(tokenFrom)) {
-      toast.error(`${tokenFrom.symbol} is not supported in this AMM pool. Only TKA and TKB can be swapped.`)
+    // Check if swap is possible
+    const swapInfo = canSwapTokens(tokenFrom, tokenTo)
+    if (!swapInfo.canSwap) {
+      toast.error(`Cannot swap ${tokenFrom.symbol} to ${tokenTo.symbol}. No pool available for this pair.`)
       return
     }
-    if (!isTokenSupported(tokenTo)) {
-      toast.error(`${tokenTo.symbol} is not supported in this AMM pool. Only TKA and TKB can be swapped.`)
+
+    if (!poolAddress) {
+      toast.error('Pool address not found')
+      return
+    }
+
+    // For now, only support direct swaps (multi-hop will be added later)
+    if (swapInfo.route !== 'direct') {
+      toast.error(`Multi-hop swaps not yet implemented. Please use direct pairs.`)
       return
     }
 
@@ -121,7 +154,7 @@ export default function SwapPage() {
       address: tokenFromAddress,
       abi: erc20Abi,
       functionName: 'approve',
-      args: [AMM_ADDRESS, parseEther(amountFrom)],
+      args: [poolAddress, parseEther(amountFrom)],
     })
     toast.loading('Approving tokens...', { id: 'approve' })
 
@@ -129,18 +162,18 @@ export default function SwapPage() {
   }
 
   useEffect(() => {
-    if (approveHash && isApproving === false && amountFrom && tokenFromAddress && address) {
+    if (approveHash && isApproving === false && amountFrom && tokenFromAddress && address && poolAddress) {
       toast.success('Approval successful!', { id: 'approve' })
       toast.loading('Swapping tokens...', { id: 'swap' })
 
       swap({
-        address: AMM_ADDRESS,
+        address: poolAddress,
         abi: AMM_ABI,
         functionName: 'swapExactTokens',
         args: [parseEther(amountFrom), tokenFromAddress, address],
       })
     }
-  }, [approveHash, isApproving, amountFrom, tokenFromAddress, address, swap])
+  }, [approveHash, isApproving, amountFrom, tokenFromAddress, address, poolAddress, swap])
 
   useEffect(() => {
     if (swapHash && isSwapping === false) {
@@ -214,21 +247,29 @@ export default function SwapPage() {
           disabled={false}
         />
 
-        {/* Warning if tokens not supported */}
-        {tokenFrom && !isTokenSupported(tokenFrom) && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
-            <p className="text-sm text-yellow-800 dark:text-yellow-300">
-              ⚠️ <strong>{tokenFrom.symbol}</strong> is not supported in this AMM pool. This AMM only supports <strong>TKA ↔ TKB</strong> swaps.
-            </p>
-          </div>
-        )}
-        {tokenTo && !isTokenSupported(tokenTo) && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
-            <p className="text-sm text-yellow-800 dark:text-yellow-300">
-              ⚠️ <strong>{tokenTo.symbol}</strong> is not supported in this AMM pool. This AMM only supports <strong>TKA ↔ TKB</strong> swaps.
-            </p>
-          </div>
-        )}
+        {/* Swap Route Info */}
+        {tokenFrom && tokenTo && (() => {
+          const swapInfo = canSwapTokens(tokenFrom, tokenTo)
+          if (!swapInfo.canSwap) {
+            return (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                <p className="text-sm text-red-800 dark:text-red-300">
+                  ❌ Cannot swap <strong>{tokenFrom.symbol}</strong> to <strong>{tokenTo.symbol}</strong>. No pool available for this pair.
+                </p>
+              </div>
+            )
+          }
+          if (swapInfo.route === 'via-bridge') {
+            return (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  ℹ️ This swap will route through TKA bridge (multi-hop). Direct swaps only for now.
+                </p>
+              </div>
+            )
+          }
+          return null
+        })()}
 
         {/* Swap Info */}
         {amountFrom && parseFloat(amountFrom) > 0 && (
@@ -274,13 +315,13 @@ export default function SwapPage() {
             parseFloat(amountFrom) <= 0 || 
             isApproving || 
             isSwapping ||
-            !isTokenSupported(tokenFrom) ||
-            !isTokenSupported(tokenTo)
+            !swapInfo.canSwap ||
+            swapInfo.route !== 'direct'
           }
           size="lg"
           className="w-full text-lg py-4"
         >
-          {isApproving ? 'Approving...' : isSwapping ? 'Swapping...' : !isTokenSupported(tokenFrom) || !isTokenSupported(tokenTo) ? 'Select TKA or TKB to swap' : 'Swap'}
+          {isApproving ? 'Approving...' : isSwapping ? 'Swapping...' : !swapInfo.canSwap ? 'No pool available' : swapInfo.route !== 'direct' ? 'Direct swap only' : 'Swap'}
         </Button>
       </motion.div>
 
@@ -328,9 +369,10 @@ export default function SwapPage() {
                 return
               }
               setTokenFrom(token)
-              // Show warning if not supported
-              if (!isTokenSupported(token)) {
-                toast.error(`${token.symbol} is not supported in this AMM. Only TKA and TKB can be swapped.`)
+              // Check if swap is possible
+              const swapCheck = canSwapTokens(token, tokenTo)
+              if (!swapCheck.canSwap && tokenTo) {
+                toast.error(`Cannot swap ${token.symbol} to ${tokenTo.symbol}. No pool available.`)
               }
             } else {
               // Don't allow selecting same token as "from"
@@ -339,9 +381,10 @@ export default function SwapPage() {
                 return
               }
               setTokenTo(token)
-              // Show warning if not supported
-              if (!isTokenSupported(token)) {
-                toast.error(`${token.symbol} is not supported in this AMM. Only TKA and TKB can be swapped.`)
+              // Check if swap is possible
+              const swapCheck = canSwapTokens(tokenFrom, token)
+              if (!swapCheck.canSwap && tokenFrom) {
+                toast.error(`Cannot swap ${tokenFrom.symbol} to ${token.symbol}. No pool available.`)
               }
             }
           }}

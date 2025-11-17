@@ -2,5 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "NEXT_PUBLIC_ARC_RPC_URL": "https://rpc.testnet.arc.network",
+    "NEXT_PUBLIC_ARC_CHAIN_ID": "5042002",
+    "NEXT_PUBLIC_TOKEN_A_ADDRESS": "0xc73768EDfe84d1cd3273a4D79074aD7874eFc0D2",
+    "NEXT_PUBLIC_TOKEN_B_ADDRESS": "0x20f5f88e3e483595D11f95299411B77061709B9E",
+    "NEXT_PUBLIC_AMM_ADDRESS": "0xf7E21C3DEAA8D32B4b99bbd5469b32c65F974514"
+  }
 }

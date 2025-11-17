@@ -20,10 +20,6 @@ const queryClient = new QueryClient({
 export const metadata = {
   title: 'Arc Finance - Decentralized Exchange',
   description: 'Trade tokens, provide liquidity, and earn rewards on Arc Network',
-  icons: {
-    icon: '/icon.svg',
-    apple: '/apple-icon.png',
-  },
 }
 
 export default function RootLayout({
@@ -35,7 +31,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
       <body>
         <WagmiProvider config={config}>

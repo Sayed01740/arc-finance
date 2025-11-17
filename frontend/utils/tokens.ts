@@ -13,7 +13,7 @@ export interface Token {
 export const OFFICIAL_TOKENS: Token[] = [
   {
     symbol: 'USDC',
-    name: 'USD Coin',
+    name: 'USD Coin (Arc Official)',
     address: '0x3600000000000000000000000000000000000000' as `0x${string}`,
     decimals: 18,
     isOfficial: true,

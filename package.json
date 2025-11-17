@@ -1,0 +1,24 @@
+{
+  "name": "arc-finance",
+  "version": "1.0.0",
+  "description": "Complete DeFi AMM on Arc testnet",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:token": "hardhat run scripts/deployToken.ts --network arc",
+    "deploy:amm": "hardhat run scripts/deployAMM.ts --network arc",
+    "add-liquidity": "hardhat run scripts/addLiquidity.ts --network arc",
+    "node": "hardhat node",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@types/node": "^20.10.0",
+    "hardhat": "^2.19.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "dotenv": "^16.3.1"
+  }
+}

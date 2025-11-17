@@ -6,7 +6,7 @@ import { TrendingUp, Users, Lock, ArrowRight, ArrowLeftRight, Coins, BarChart3 }
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { MetricCard } from '@/components/ui/MetricCard'
-import { useWallet } from '@/hooks/useWallet'
+import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { AMM_ABI } from '@/utils/abi'
 import { formatEther, erc20Abi } from 'viem'
 
@@ -16,7 +16,6 @@ const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`
 
 export default function Home() {
   const { isConnected, address } = useAccount()
-  const { connectWallet } = useWallet()
 
   const { data: reserves } = useReadContract({
     address: AMM_ADDRESS,
@@ -75,9 +74,7 @@ export default function Home() {
         </p>
         <div className="flex items-center justify-center space-x-4">
           {!isConnected ? (
-            <Button size="lg" onClick={connectWallet} className="text-lg px-8 py-4">
-              Connect Wallet
-            </Button>
+            <WalletConnectButton />
           ) : (
             <Link href="/swap">
               <Button size="lg" className="text-lg px-8 py-4">

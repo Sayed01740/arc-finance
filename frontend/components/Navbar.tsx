@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
-import { Wallet, Menu, X, Moon, Sun } from 'lucide-react'
+import { useAccount, useSwitchChain } from 'wagmi'
+import { Menu, X, Moon, Sun } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useTheme } from './ThemeProvider'
 import { arcTestnet } from '@/wagmi.config'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
+import { WalletConnectButton } from './WalletConnectButton'
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -33,19 +34,8 @@ export function Navbar() {
     // ThemeProvider not available during SSR
   }
   const { address, isConnected, chain } = useAccount()
-  const { connect, connectors, isPending } = useConnect()
-  const { disconnect } = useDisconnect()
   const { switchChain } = useSwitchChain()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const handleConnect = () => {
-    const injectedConnector = connectors.find((c) => c.id === 'injected' || c.id === 'metaMask')
-    if (injectedConnector) {
-      connect({ connector: injectedConnector })
-    } else if (connectors.length > 0) {
-      connect({ connector: connectors[0] })
-    }
-  }
 
   const handleSwitchChain = () => {
     if (chain?.id !== arcTestnet.id) {
@@ -54,7 +44,6 @@ export function Navbar() {
     }
   }
 
-  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-dark-700 bg-white/80 dark:bg-dark-800/80 backdrop-blur-lg">
@@ -63,7 +52,7 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-primary text-white font-bold text-xl">
-              iZ
+              AF
             </div>
             <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               Arc Finance
@@ -106,38 +95,18 @@ export function Navbar() {
               )}
             </button>
 
-            {/* Wallet Connect */}
-            {isConnected ? (
-              <div className="flex items-center space-x-2">
-                {chain?.id !== arcTestnet.id && (
-                  <button
-                    onClick={handleSwitchChain}
-                    className="px-3 py-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors"
-                  >
-                    Switch Network
-                  </button>
-                )}
-                <div className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-dark-700 rounded-lg">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                  <span className="text-sm font-mono">{shortAddress}</span>
-                </div>
+            {/* Wallet Connect & Network Switch */}
+            <div className="flex items-center space-x-2">
+              {isConnected && chain?.id !== arcTestnet.id && (
                 <button
-                  onClick={() => disconnect()}
-                  className="px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors text-sm font-medium"
+                  onClick={handleSwitchChain}
+                  className="px-3 py-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors"
                 >
-                  Disconnect
+                  Switch Network
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleConnect}
-                disabled={isPending}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-              >
-                <Wallet className="w-4 h-4" />
-                <span>{isPending ? 'Connecting...' : 'Connect Wallet'}</span>
-              </button>
-            )}
+              )}
+              <WalletConnectButton />
+            </div>
 
             {/* Mobile Menu Button */}
             <button

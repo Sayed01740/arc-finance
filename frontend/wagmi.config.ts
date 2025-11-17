@@ -1,7 +1,7 @@
 'use client'
 
 import { http, createConfig } from 'wagmi'
-import { injected } from 'wagmi/connectors'
+import { injected, metaMask, walletConnect, coinbaseWallet } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
 // Define Arc testnet chain
@@ -29,7 +29,25 @@ export const arcTestnet = defineChain({
 
 export const config = createConfig({
   chains: [arcTestnet],
-  connectors: [injected()],
+  connectors: [
+    metaMask(),
+    injected({
+      target: 'metaMask',
+    }),
+    injected({
+      target() {
+        return {
+          id: 'injected',
+          name: 'Injected Wallet',
+          provider: typeof window !== 'undefined' ? window.ethereum : undefined,
+        }
+      },
+    }),
+    coinbaseWallet({
+      appName: 'Arc Finance',
+      appLogoUrl: 'https://arc-finance.vercel.app/logo.png',
+    }),
+  ],
   transports: {
     [arcTestnet.id]: http(),
   },

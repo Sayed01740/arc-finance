@@ -13,10 +13,23 @@ import { Token, ALL_TOKENS, findTokenByAddress } from '@/utils/tokens'
 import toast from 'react-hot-toast'
 
 const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
+const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`
+const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`
 
-// Default to first available tokens
-const DEFAULT_FROM_TOKEN = ALL_TOKENS[0] || null
-const DEFAULT_TO_TOKEN = ALL_TOKENS[1] || null
+// Get tokens that are actually supported by the AMM pool
+const AMM_TOKEN_A = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_A_ADDRESS?.toLowerCase()) || null
+const AMM_TOKEN_B = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_B_ADDRESS?.toLowerCase()) || null
+
+// Default to AMM supported tokens (TKA/TKB)
+const DEFAULT_FROM_TOKEN = AMM_TOKEN_A || ALL_TOKENS[2] || null
+const DEFAULT_TO_TOKEN = AMM_TOKEN_B || ALL_TOKENS[3] || null
+
+// Check if a token is supported by the AMM
+function isTokenSupported(token: Token | null): boolean {
+  if (!token || !TOKEN_A_ADDRESS || !TOKEN_B_ADDRESS) return false
+  const tokenAddr = token.address.toLowerCase()
+  return tokenAddr === TOKEN_A_ADDRESS.toLowerCase() || tokenAddr === TOKEN_B_ADDRESS.toLowerCase()
+}
 
 export default function SwapPage() {
   const { address, isConnected } = useAccount()
@@ -48,7 +61,7 @@ export default function SwapPage() {
     functionName: 'getAmountOut',
     args: amountFrom && parseFloat(amountFrom) > 0 ? [parseEther(amountFrom), tokenFromAddress] : undefined,
     query: {
-      enabled: !!amountFrom && parseFloat(amountFrom) > 0 && !!tokenFromAddress && !!AMM_ADDRESS,
+      enabled: !!amountFrom && parseFloat(amountFrom) > 0 && !!tokenFromAddress && !!AMM_ADDRESS && isTokenSupported(tokenFrom),
     },
   })
 
@@ -90,6 +103,16 @@ export default function SwapPage() {
   const handleSwap = () => {
     if (!tokenFrom || !tokenTo || !amountFrom || !isConnected) {
       toast.error('Please connect wallet and enter amount')
+      return
+    }
+
+    // Validate tokens are supported by AMM
+    if (!isTokenSupported(tokenFrom)) {
+      toast.error(`${tokenFrom.symbol} is not supported in this AMM pool. Only TKA and TKB can be swapped.`)
+      return
+    }
+    if (!isTokenSupported(tokenTo)) {
+      toast.error(`${tokenTo.symbol} is not supported in this AMM pool. Only TKA and TKB can be swapped.`)
       return
     }
 
@@ -188,8 +211,24 @@ export default function SwapPage() {
           amount={amountTo}
           onAmountChange={() => {}} // Read-only
           onTokenSelect={() => setShowTokenSelector('to')}
-          disabled={true}
+          disabled={false}
         />
+
+        {/* Warning if tokens not supported */}
+        {tokenFrom && !isTokenSupported(tokenFrom) && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-300">
+              ⚠️ <strong>{tokenFrom.symbol}</strong> is not supported in this AMM pool. This AMM only supports <strong>TKA ↔ TKB</strong> swaps.
+            </p>
+          </div>
+        )}
+        {tokenTo && !isTokenSupported(tokenTo) && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-300">
+              ⚠️ <strong>{tokenTo.symbol}</strong> is not supported in this AMM pool. This AMM only supports <strong>TKA ↔ TKB</strong> swaps.
+            </p>
+          </div>
+        )}
 
         {/* Swap Info */}
         {amountFrom && parseFloat(amountFrom) > 0 && (
@@ -230,11 +269,18 @@ export default function SwapPage() {
         {/* Swap Button */}
         <Button
           onClick={handleSwap}
-          disabled={!amountFrom || parseFloat(amountFrom) <= 0 || isApproving || isSwapping}
+          disabled={
+            !amountFrom || 
+            parseFloat(amountFrom) <= 0 || 
+            isApproving || 
+            isSwapping ||
+            !isTokenSupported(tokenFrom) ||
+            !isTokenSupported(tokenTo)
+          }
           size="lg"
           className="w-full text-lg py-4"
         >
-          {isApproving ? 'Approving...' : isSwapping ? 'Swapping...' : 'Swap'}
+          {isApproving ? 'Approving...' : isSwapping ? 'Swapping...' : !isTokenSupported(tokenFrom) || !isTokenSupported(tokenTo) ? 'Select TKA or TKB to swap' : 'Swap'}
         </Button>
       </motion.div>
 
@@ -282,6 +328,10 @@ export default function SwapPage() {
                 return
               }
               setTokenFrom(token)
+              // Show warning if not supported
+              if (!isTokenSupported(token)) {
+                toast.error(`${token.symbol} is not supported in this AMM. Only TKA and TKB can be swapped.`)
+              }
             } else {
               // Don't allow selecting same token as "from"
               if (tokenFrom && token.address.toLowerCase() === tokenFrom.address.toLowerCase()) {
@@ -289,10 +339,15 @@ export default function SwapPage() {
                 return
               }
               setTokenTo(token)
+              // Show warning if not supported
+              if (!isTokenSupported(token)) {
+                toast.error(`${token.symbol} is not supported in this AMM. Only TKA and TKB can be swapped.`)
+              }
             }
           }}
           onClose={() => setShowTokenSelector(null)}
           excludeToken={showTokenSelector === 'from' ? tokenTo : tokenFrom}
+          showWarning={true}
         />
       )}
     </div>

@@ -10,9 +10,18 @@ interface TokenSelectorProps {
   onSelect: (token: Token) => void
   onClose: () => void
   excludeToken?: Token | null
+  showWarning?: boolean // Show warning for unsupported tokens
 }
 
-export function TokenSelector({ selectedToken, onSelect, onClose, excludeToken }: TokenSelectorProps) {
+export function TokenSelector({ selectedToken, onSelect, onClose, excludeToken, showWarning = false }: TokenSelectorProps) {
+  const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS?.toLowerCase()
+  const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS?.toLowerCase()
+
+  const isTokenSupported = (token: Token): boolean => {
+    if (!TOKEN_A_ADDRESS || !TOKEN_B_ADDRESS) return false
+    const tokenAddr = token.address.toLowerCase()
+    return tokenAddr === TOKEN_A_ADDRESS || tokenAddr === TOKEN_B_ADDRESS
+  }
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredOfficial = OFFICIAL_TOKENS.filter(
@@ -87,15 +96,15 @@ export function TokenSelector({ selectedToken, onSelect, onClose, excludeToken }
 
             {/* Token List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Official Tokens */}
-              {filteredOfficial.length > 0 && (
+              {/* Supported Tokens (TKA/TKB) */}
+              {filteredCustom.filter(t => isTokenSupported(t)).length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-3 px-2">
-                    <Circle className="w-4 h-4 text-blue-500" />
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Official Tokens</h3>
+                    <Circle className="w-4 h-4 text-green-500" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Available in AMM Pool</h3>
                   </div>
                   <div className="space-y-1">
-                    {filteredOfficial.map((token) => (
+                    {filteredCustom.filter(t => isTokenSupported(t)).map((token) => (
                       <TokenItem
                         key={token.address}
                         token={token}
@@ -107,20 +116,48 @@ export function TokenSelector({ selectedToken, onSelect, onClose, excludeToken }
                 </div>
               )}
 
-              {/* Custom Tokens */}
-              {filteredCustom.length > 0 && (
+              {/* Official Tokens (with warning) */}
+              {filteredOfficial.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-3 px-2">
-                    <Circle className="w-4 h-4 text-gray-500" />
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Custom Tokens</h3>
+                    <Circle className="w-4 h-4 text-blue-500" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Official Tokens</h3>
+                    {showWarning && (
+                      <span className="text-xs text-yellow-600 dark:text-yellow-400">(Not in AMM pool)</span>
+                    )}
                   </div>
                   <div className="space-y-1">
-                    {filteredCustom.map((token) => (
+                    {filteredOfficial.map((token) => (
                       <TokenItem
                         key={token.address}
                         token={token}
                         onSelect={handleSelect}
                         isSelected={selectedToken?.address.toLowerCase() === token.address.toLowerCase()}
+                        showWarning={showWarning && !isTokenSupported(token)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Tokens (unsupported) */}
+              {filteredCustom.filter(t => !isTokenSupported(t)).length > 0 && (
+                <div>
+                  <div className="flex items-center space-x-2 mb-3 px-2">
+                    <Circle className="w-4 h-4 text-gray-500" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Custom Tokens</h3>
+                    {showWarning && (
+                      <span className="text-xs text-yellow-600 dark:text-yellow-400">(Not in AMM pool)</span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {filteredCustom.filter(t => !isTokenSupported(t)).map((token) => (
+                      <TokenItem
+                        key={token.address}
+                        token={token}
+                        onSelect={handleSelect}
+                        isSelected={selectedToken?.address.toLowerCase() === token.address.toLowerCase()}
+                        showWarning={showWarning && !isTokenSupported(token)}
                       />
                     ))}
                   </div>
@@ -145,9 +182,10 @@ interface TokenItemProps {
   token: Token
   onSelect: (token: Token) => void
   isSelected: boolean
+  showWarning?: boolean
 }
 
-function TokenItem({ token, onSelect, isSelected }: TokenItemProps) {
+function TokenItem({ token, onSelect, isSelected, showWarning }: TokenItemProps) {
   return (
     <button
       onClick={() => onSelect(token)}
@@ -167,6 +205,11 @@ function TokenItem({ token, onSelect, isSelected }: TokenItemProps) {
             )}
           </div>
           <span className="text-sm text-gray-500 dark:text-gray-400">{token.name}</span>
+          {showWarning && (
+            <span className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 block">
+              ⚠️ Not available in this AMM pool
+            </span>
+          )}
         </div>
       </div>
       {isSelected && (

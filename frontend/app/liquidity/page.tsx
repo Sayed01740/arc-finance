@@ -198,7 +198,7 @@ export default function LiquidityPage() {
       </div>
 
       {/* Pool Statistics */}
-      {reserves && reserves[0] > 0n && (
+      {reserves && reserves[0] > BigInt(0) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -226,7 +226,7 @@ export default function LiquidityPage() {
       )}
 
       {/* Price Chart */}
-      {reserves && reserves[0] > 0n && (
+      {reserves && reserves[0] > BigInt(0) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -309,7 +309,7 @@ export default function LiquidityPage() {
             onTokenSelect={() => {}}
             balance={tokenBBalanceFormatted}
           />
-          {reserves && reserves[0] > 0n && (
+          {reserves && reserves[0] > BigInt(0) && (
             <div className="bg-gray-50 dark:bg-dark-700 rounded-xl p-4 text-sm text-gray-600 dark:text-gray-400">
               <p>Optimal ratio: 1 TKA = {(parseFloat(reserveB) / parseFloat(reserveA)).toFixed(4)} TKB</p>
             </div>

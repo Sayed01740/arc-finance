@@ -2,7 +2,7 @@
 
 import { useAccount, useReadContract } from 'wagmi'
 import { motion } from 'framer-motion'
-import { TrendingUp, Users, Lock, ArrowRight, SwapHorizontal, Coins, BarChart3 } from 'lucide-react'
+import { TrendingUp, Users, Lock, ArrowRight, ArrowLeftRight, Coins, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -54,7 +54,7 @@ export default function Home() {
     : '0'
 
   const volume24h = '12.5K' // Mock data
-  const pools = reserves && reserves[0] > 0n ? 1 : 0
+  const pools = reserves && reserves[0] > BigInt(0) ? 1 : 0
 
   return (
     <div className="space-y-12">
@@ -130,7 +130,7 @@ export default function Home() {
             className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700 hover:shadow-lg transition-shadow"
           >
             <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-4">
-              <SwapHorizontal className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              <ArrowLeftRight className="w-6 h-6 text-primary-600 dark:text-primary-400" />
             </div>
             <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Swap</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">

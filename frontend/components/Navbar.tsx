@@ -22,7 +22,16 @@ const navigation = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { theme, toggleTheme } = useTheme()
+  let theme = 'light'
+  let toggleTheme = () => {}
+  
+  try {
+    const themeContext = useTheme()
+    theme = themeContext.theme
+    toggleTheme = themeContext.toggleTheme
+  } catch (e) {
+    // ThemeProvider not available during SSR
+  }
   const { address, isConnected, chain } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()

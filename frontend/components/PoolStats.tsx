@@ -22,7 +22,7 @@ export function PoolStats() {
   })
 
   useEffect(() => {
-    if (reserves && reserves[0] > 0n) {
+    if (reserves && reserves[0] > BigInt(0)) {
       const reserveA = Number(formatEther(reserves[0]))
       const reserveB = Number(formatEther(reserves[1]))
       const calculatedPrice = reserveB / reserveA
@@ -30,7 +30,7 @@ export function PoolStats() {
     }
   }, [reserves])
 
-  if (!reserves || reserves[0] === 0n) {
+  if (!reserves || reserves[0] === BigInt(0)) {
     return (
       <div className="card">
         <h2 style={{ marginBottom: '16px' }}>Pool Statistics</h2>

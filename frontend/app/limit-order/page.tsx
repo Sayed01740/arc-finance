@@ -5,21 +5,13 @@ import { useAccount } from 'wagmi'
 import { motion } from 'framer-motion'
 import { Clock, Plus, X } from 'lucide-react'
 import { TokenInput } from '@/components/TokenInput'
+import { Token, ALL_TOKENS } from '@/utils/tokens'
 import { Button } from '@/components/ui/Button'
 import toast from 'react-hot-toast'
 
-const TOKENS = {
-  TKA: {
-    symbol: 'TKA',
-    name: 'Token A',
-    address: process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as string,
-  },
-  TKB: {
-    symbol: 'TKB',
-    name: 'Token B',
-    address: process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as string,
-  },
-}
+// Use tokens from token list
+const DEFAULT_TOKEN_FROM = ALL_TOKENS[0] || null
+const DEFAULT_TOKEN_TO = ALL_TOKENS[1] || null
 
 interface LimitOrder {
   id: string
@@ -32,8 +24,8 @@ interface LimitOrder {
 
 export default function LimitOrderPage() {
   const { isConnected } = useAccount()
-  const [tokenFrom, setTokenFrom] = useState<typeof TOKENS.TKA | typeof TOKENS.TKB | null>(TOKENS.TKA)
-  const [tokenTo, setTokenTo] = useState<typeof TOKENS.TKA | typeof TOKENS.TKB | null>(TOKENS.TKB)
+  const [tokenFrom, setTokenFrom] = useState<Token | null>(DEFAULT_TOKEN_FROM)
+  const [tokenTo, setTokenTo] = useState<Token | null>(DEFAULT_TOKEN_TO)
   const [amount, setAmount] = useState('')
   const [limitPrice, setLimitPrice] = useState('')
   const [orders, setOrders] = useState<LimitOrder[]>([])
@@ -107,7 +99,12 @@ export default function LimitOrderPage() {
             amount={amount}
             onAmountChange={setAmount}
             onTokenSelect={() => {
-              setTokenFrom(tokenFrom === TOKENS.TKA ? TOKENS.TKB : TOKENS.TKA)
+              // Toggle between available tokens
+              const currentIndex = ALL_TOKENS.findIndex(t => t.address === tokenFrom?.address)
+              const nextToken = ALL_TOKENS[(currentIndex + 1) % ALL_TOKENS.length]
+              if (nextToken.address !== tokenTo?.address) {
+                setTokenFrom(nextToken)
+              }
             }}
           />
 

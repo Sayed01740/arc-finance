@@ -4,12 +4,7 @@ import { useState } from 'react'
 import { ChevronDown, Maximize2 } from 'lucide-react'
 import clsx from 'clsx'
 
-interface Token {
-  symbol: string
-  name: string
-  address: string
-  logo?: string
-}
+import { Token } from '@/utils/tokens'
 
 interface TokenInputProps {
   label: string

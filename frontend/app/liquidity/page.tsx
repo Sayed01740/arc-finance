@@ -6,6 +6,7 @@ import { parseEther, formatEther, erc20Abi } from 'viem'
 import { motion } from 'framer-motion'
 import { Plus, Minus, TrendingUp, BarChart3 } from 'lucide-react'
 import { TokenInput } from '@/components/TokenInput'
+import { Token, ALL_TOKENS } from '@/utils/tokens'
 import { Button } from '@/components/ui/Button'
 import { AMM_ABI } from '@/utils/abi'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -295,7 +296,7 @@ export default function LiquidityPage() {
         >
           <TokenInput
             label="Token A Amount"
-            token={TOKENS.TKA}
+            token={ALL_TOKENS[0] || null}
             amount={amountA}
             onAmountChange={setAmountA}
             onTokenSelect={() => {}}
@@ -303,7 +304,7 @@ export default function LiquidityPage() {
           />
           <TokenInput
             label="Token B Amount"
-            token={TOKENS.TKB}
+            token={ALL_TOKENS[1] || null}
             amount={amountB}
             onAmountChange={setAmountB}
             onTokenSelect={() => {}}

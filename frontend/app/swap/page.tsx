@@ -7,34 +7,26 @@ import { motion } from 'framer-motion'
 import { ArrowDownUp, Settings, Info } from 'lucide-react'
 import { TokenInput } from '@/components/TokenInput'
 import { Button } from '@/components/ui/Button'
+import { TokenSelector } from '@/components/TokenSelector'
 import { AMM_ABI } from '@/utils/abi'
+import { Token, ALL_TOKENS, findTokenByAddress } from '@/utils/tokens'
 import toast from 'react-hot-toast'
 
 const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
-const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`
-const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`
 
-const TOKENS = {
-  TKA: {
-    symbol: 'TKA',
-    name: 'Token A',
-    address: TOKEN_A_ADDRESS,
-  },
-  TKB: {
-    symbol: 'TKB',
-    name: 'Token B',
-    address: TOKEN_B_ADDRESS,
-  },
-}
+// Default to first available tokens
+const DEFAULT_FROM_TOKEN = ALL_TOKENS[0] || null
+const DEFAULT_TO_TOKEN = ALL_TOKENS[1] || null
 
 export default function SwapPage() {
   const { address, isConnected } = useAccount()
-  const [tokenFrom, setTokenFrom] = useState<typeof TOKENS.TKA | typeof TOKENS.TKB | null>(TOKENS.TKA)
-  const [tokenTo, setTokenTo] = useState<typeof TOKENS.TKA | typeof TOKENS.TKB | null>(TOKENS.TKB)
+  const [tokenFrom, setTokenFrom] = useState<Token | null>(DEFAULT_FROM_TOKEN)
+  const [tokenTo, setTokenTo] = useState<Token | null>(DEFAULT_TO_TOKEN)
   const [amountFrom, setAmountFrom] = useState('')
   const [amountTo, setAmountTo] = useState('')
   const [slippage, setSlippage] = useState('0.5')
   const [showSettings, setShowSettings] = useState(false)
+  const [showTokenSelector, setShowTokenSelector] = useState<'from' | 'to' | null>(null)
 
   const tokenFromAddress = tokenFrom?.address as `0x${string}`
   const tokenToAddress = tokenTo?.address as `0x${string}`
@@ -175,10 +167,7 @@ export default function SwapPage() {
           token={tokenFrom}
           amount={amountFrom}
           onAmountChange={setAmountFrom}
-          onTokenSelect={() => {
-            // Simple token selection - in real app, show modal
-            setTokenFrom(tokenFrom === TOKENS.TKA ? TOKENS.TKB : TOKENS.TKA)
-          }}
+          onTokenSelect={() => setShowTokenSelector('from')}
           balance={balanceFromFormatted}
         />
 
@@ -198,9 +187,7 @@ export default function SwapPage() {
           token={tokenTo}
           amount={amountTo}
           onAmountChange={() => {}} // Read-only
-          onTokenSelect={() => {
-            setTokenTo(tokenTo === TOKENS.TKA ? TOKENS.TKB : TOKENS.TKA)
-          }}
+          onTokenSelect={() => setShowTokenSelector('to')}
           disabled={true}
         />
 
@@ -282,6 +269,32 @@ export default function SwapPage() {
           </div>
         )}
       </div>
+
+      {/* Token Selector Modal */}
+      {showTokenSelector && (
+        <TokenSelector
+          selectedToken={showTokenSelector === 'from' ? tokenFrom : tokenTo}
+          onSelect={(token) => {
+            if (showTokenSelector === 'from') {
+              // Don't allow selecting same token as "to"
+              if (tokenTo && token.address.toLowerCase() === tokenTo.address.toLowerCase()) {
+                toast.error('Cannot select the same token')
+                return
+              }
+              setTokenFrom(token)
+            } else {
+              // Don't allow selecting same token as "from"
+              if (tokenFrom && token.address.toLowerCase() === tokenFrom.address.toLowerCase()) {
+                toast.error('Cannot select the same token')
+                return
+              }
+              setTokenTo(token)
+            }
+          }}
+          onClose={() => setShowTokenSelector(null)}
+          excludeToken={showTokenSelector === 'from' ? tokenTo : tokenFrom}
+        />
+      )}
     </div>
   )
 }

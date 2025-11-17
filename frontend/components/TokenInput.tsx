@@ -39,12 +39,12 @@ export function TokenInput({
     <div className={clsx('space-y-2', className)}>
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-        {balance && (
+        {token && (
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500 dark:text-gray-500">
-              Balance: {parseFloat(balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+              Balance: {balance ? parseFloat(balance).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0.0000'}
             </span>
-            {max && (
+            {max && balance && parseFloat(balance) > 0 && (
               <button
                 onClick={handleMax}
                 className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"

@@ -10,6 +10,7 @@ import { Token, ALL_TOKENS } from '@/utils/tokens'
 import { Button } from '@/components/ui/Button'
 import { AMM_ABI } from '@/utils/abi'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useTokenBalance } from '@/hooks/useTokenBalance'
 import toast from 'react-hot-toast'
 
 const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
@@ -70,27 +71,13 @@ export default function LiquidityPage() {
     },
   })
 
-  const { data: tokenABalance } = useReadContract({
-    address: TOKEN_A_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!TOKEN_A_ADDRESS,
-      refetchInterval: 5000,
-    },
-  })
+  // Find tokens from ALL_TOKENS list
+  const tokenA = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_A_ADDRESS?.toLowerCase())
+  const tokenB = ALL_TOKENS.find(t => t.address.toLowerCase() === TOKEN_B_ADDRESS?.toLowerCase())
 
-  const { data: tokenBBalance } = useReadContract({
-    address: TOKEN_B_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!TOKEN_B_ADDRESS,
-      refetchInterval: 5000,
-    },
-  })
+  // Use custom hook for better balance handling
+  const { formattedBalance: tokenABalanceFormatted, error: tokenAError } = useTokenBalance(tokenA || null, address)
+  const { formattedBalance: tokenBBalanceFormatted, error: tokenBError } = useTokenBalance(tokenB || null, address)
 
   const { writeContract: approveA, data: approveAHash } = useWriteContract()
   const { writeContract: approveB, data: approveBHash } = useWriteContract()
@@ -176,8 +163,15 @@ export default function LiquidityPage() {
   const reserveA = reserves ? formatEther(reserves[0]) : '0'
   const reserveB = reserves ? formatEther(reserves[1]) : '0'
   const lpBalanceFormatted = lpBalance ? formatEther(lpBalance) : '0'
-  const tokenABalanceFormatted = tokenABalance ? formatEther(tokenABalance) : '0'
-  const tokenBBalanceFormatted = tokenBBalance ? formatEther(tokenBBalance) : '0'
+  // Log errors for debugging
+  useEffect(() => {
+    if (tokenAError) {
+      console.error('Error fetching tokenA balance:', tokenAError)
+    }
+    if (tokenBError) {
+      console.error('Error fetching tokenB balance:', tokenBError)
+    }
+  }, [tokenAError, tokenBError])
   const priceData = generatePriceData()
 
   if (!isConnected) {

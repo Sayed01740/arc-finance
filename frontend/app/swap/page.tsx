@@ -11,7 +11,14 @@ import { TokenSelector } from '@/components/TokenSelector'
 import { AMM_ABI } from '@/utils/abi'
 import { Token, ALL_TOKENS, findTokenByAddress } from '@/utils/tokens'
 import { findPoolForPair, findSwapRoute, canSwapDirectly } from '@/utils/pools'
+import { useTokenBalance } from '@/hooks/useTokenBalance'
 import toast from 'react-hot-toast'
+
+// Debug token config in development
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  const { debugTokenConfig } = require('@/utils/debug')
+  debugTokenConfig()
+}
 
 // Default to first available tokens
 const DEFAULT_FROM_TOKEN = ALL_TOKENS[0] || null
@@ -69,16 +76,9 @@ export default function SwapPage() {
   const swapInfo = canSwapTokens(tokenFrom, tokenTo)
   const poolAddress = swapInfo.poolAddress || swapInfo.pools?.[0]?.address
 
-  const { data: balanceFrom } = useReadContract({
-    address: tokenFromAddress,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!tokenFromAddress,
-      refetchInterval: 5000,
-    },
-  })
+  // Use custom hook for better balance handling
+  const { formattedBalance: balanceFromFormatted, isLoading: isLoadingBalanceFrom, error: balanceFromError } = useTokenBalance(tokenFrom, address)
+  const { formattedBalance: balanceToFormatted, isLoading: isLoadingBalanceTo, error: balanceToError } = useTokenBalance(tokenTo, address)
 
   const { data: amountOut } = useReadContract({
     address: poolAddress,
@@ -192,7 +192,15 @@ export default function SwapPage() {
     setAmountTo(tempAmount)
   }
 
-  const balanceFromFormatted = balanceFrom ? formatEther(balanceFrom) : '0'
+  // Log errors for debugging
+  useEffect(() => {
+    if (balanceFromError) {
+      console.error('Error fetching balance for tokenFrom:', balanceFromError)
+    }
+    if (balanceToError) {
+      console.error('Error fetching balance for tokenTo:', balanceToError)
+    }
+  }, [balanceFromError, balanceToError])
 
   if (!isConnected) {
     return (
@@ -224,7 +232,7 @@ export default function SwapPage() {
           amount={amountFrom}
           onAmountChange={setAmountFrom}
           onTokenSelect={() => setShowTokenSelector('from')}
-          balance={balanceFromFormatted}
+          balance={balanceFromFormatted || '0'}
         />
 
         {/* Flip Button */}
@@ -244,6 +252,7 @@ export default function SwapPage() {
           amount={amountTo}
           onAmountChange={() => {}} // Read-only
           onTokenSelect={() => setShowTokenSelector('to')}
+          balance={balanceToFormatted || '0'}
           disabled={false}
         />
 

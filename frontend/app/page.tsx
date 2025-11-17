@@ -9,6 +9,8 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { AMM_ABI } from '@/utils/abi'
 import { formatEther, erc20Abi } from 'viem'
+import { useTokenBalances } from '@/hooks/useTokenBalance'
+import { ALL_TOKENS } from '@/utils/tokens'
 
 const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
 const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`
@@ -27,25 +29,12 @@ export default function Home() {
     },
   })
 
-  const { data: tokenABalance } = useReadContract({
-    address: TOKEN_A_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!TOKEN_A_ADDRESS,
-    },
-  })
+  // Fetch balances for all tokens
+  const { balances: allBalances } = useTokenBalances(ALL_TOKENS, address)
 
-  const { data: tokenBBalance } = useReadContract({
-    address: TOKEN_B_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address && !!TOKEN_B_ADDRESS,
-    },
-  })
+  // Get specific token balances
+  const tokenABalance = TOKEN_A_ADDRESS ? allBalances[TOKEN_A_ADDRESS.toLowerCase()] : null
+  const tokenBBalance = TOKEN_B_ADDRESS ? allBalances[TOKEN_B_ADDRESS.toLowerCase()] : null
 
   // Calculate TVL (simplified - using reserves)
   const tvl = reserves
@@ -181,22 +170,22 @@ export default function Home() {
         <section className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700">
           <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Your Balances</h3>
           <div className="grid grid-cols-2 gap-4">
-            {tokenABalance && (
+            {tokenABalance && parseFloat(tokenABalance) > 0 && (
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Token A</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {parseFloat(formatEther(tokenABalance)).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
+                  {parseFloat(tokenABalance).toLocaleString(undefined, {
+                    maximumFractionDigits: 4,
                   })}
                 </p>
               </div>
             )}
-            {tokenBBalance && (
+            {tokenBBalance && parseFloat(tokenBBalance) > 0 && (
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Token B</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {parseFloat(formatEther(tokenBBalance)).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
+                  {parseFloat(tokenBBalance).toLocaleString(undefined, {
+                    maximumFractionDigits: 4,
                   })}
                 </p>
               </div>

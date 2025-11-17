@@ -18,6 +18,13 @@ export const OFFICIAL_TOKENS: Token[] = [
     decimals: 18,
     isOfficial: true,
   },
+  {
+    symbol: 'USDT',
+    name: 'Tether USD (Arc Official)',
+    address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`,
+    decimals: 18,
+    isOfficial: true,
+  },
   // Add more official tokens as they become available
 ]
 

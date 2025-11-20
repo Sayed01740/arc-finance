@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Sparkles, Image, Loader2, Minus, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { logger } from '@/utils/debugLogger'
+
+const ARC_TESTNET_CHAIN_ID = 5042002
 
 const NFT_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`) || '0x610F67164aEDF56a2BE9067CbDF5f85BFFb335d3' as `0x${string}`
 
@@ -58,42 +61,85 @@ const NFT_ABI = [
 
 export default function MintPage() {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
   const [quantity, setQuantity] = useState(1)
+  
+  // Network validation
+  const isCorrectNetwork = chainId === ARC_TESTNET_CHAIN_ID
+  
+  // Get user balance
+  const { data: balance } = useBalance({
+    address,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  })
 
-  const { data: mintPrice } = useReadContract({
+  const { data: mintPrice, isLoading: isLoadingPrice, error: priceError, refetch: refetchPrice } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'MINT_PRICE',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 5,
+      retryDelay: 2000,
+      refetchInterval: 15000,
+      staleTime: 30000,
     },
   })
 
-  const { data: totalSupply } = useReadContract({
+  // Debug price fetching with comprehensive logging
+  useEffect(() => {
+    if (isLoadingPrice) {
+      logger.logPriceFetch('start', { contractAddress: NFT_CONTRACT_ADDRESS });
+    } else if (priceError) {
+      logger.logPriceFetch('error', { 
+        error: {
+          message: priceError.message,
+          name: priceError.name,
+          cause: priceError.cause,
+          shortMessage: priceError.shortMessage,
+        }
+      });
+    } else if (mintPrice) {
+      logger.logPriceFetch('success', {
+        price: mintPrice.toString(),
+        formatted: formatEther(mintPrice),
+      });
+    }
+  }, [mintPrice, priceError, isLoadingPrice])
+
+  const { data: totalSupply, error: totalSupplyError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'totalSupply',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-      refetchInterval: 5000,
+      refetchInterval: 10000,
+      retry: 3,
+      staleTime: 30000,
     },
   })
 
-  const { data: maxSupply } = useReadContract({
+  const { data: maxSupply, error: maxSupplyError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'MAX_SUPPLY',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 3,
+      staleTime: 30000,
     },
   })
 
-  const { data: maxMintPerTx } = useReadContract({
+  const { data: maxMintPerTx, error: maxMintPerTxError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'maxMintPerTx',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 3,
+      staleTime: 30000,
     },
   })
 
@@ -103,21 +149,111 @@ export default function MintPage() {
     functionName: 'mintingEnabled',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-      refetchInterval: 5000,
+      refetchInterval: 10000,
       retry: 3,
+      staleTime: 30000,
     },
   })
 
+  // Debug all contract reads with comprehensive logging
+  useEffect(() => {
+    if (totalSupply !== undefined) {
+      logger.logContractRead('totalSupply', 'success', { result: totalSupply.toString() });
+    }
+    if (totalSupplyError) {
+      logger.logContractRead('totalSupply', 'error', { error: totalSupplyError });
+    }
+    if (maxSupply !== undefined) {
+      logger.logContractRead('MAX_SUPPLY', 'success', { result: maxSupply.toString() });
+    }
+    if (maxSupplyError) {
+      logger.logContractRead('MAX_SUPPLY', 'error', { error: maxSupplyError });
+    }
+    if (maxMintPerTx !== undefined) {
+      logger.logContractRead('maxMintPerTx', 'success', { result: maxMintPerTx.toString() });
+    }
+    if (maxMintPerTxError) {
+      logger.logContractRead('maxMintPerTx', 'error', { error: maxMintPerTxError });
+    }
+    if (mintingEnabled !== undefined) {
+      logger.logContractRead('mintingEnabled', 'success', { result: mintingEnabled });
+    }
+    if (mintingStatusError) {
+      logger.logContractRead('mintingEnabled', 'error', { error: mintingStatusError });
+    }
+  }, [totalSupply, maxSupply, maxMintPerTx, mintingEnabled, totalSupplyError, maxSupplyError, maxMintPerTxError, mintingStatusError])
+
   const isMintingEnabled = isLoadingMintingStatus ? true : (mintingEnabled !== false)
 
-  const { writeContract, data: hash, isPending } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { writeContract, data: hash, isPending, error: writeError, reset } = useWriteContract({
+    mutation: {
+      onSuccess: (data) => {
+        logger.logTransaction('confirm', { hash: data });
+        toast.loading('Transaction sent! Waiting for confirmation...', { id: 'mint' })
+      },
+      onError: (error: any) => {
+        logger.logTransaction('error', { 
+          error: {
+            name: error?.name,
+            message: error?.message,
+            cause: error?.cause,
+            shortMessage: error?.shortMessage,
+          }
+        });
+        
+        let errorMessage = 'Transaction failed'
+        
+        if (error?.message) {
+          if (error.message.includes('insufficient funds') || error.message.includes('balance')) {
+            errorMessage = 'Insufficient USDC balance. Please add more USDC to your wallet.'
+          } else if (error.message.includes('user rejected') || error.message.includes('User denied') || error.message.includes('rejected')) {
+            errorMessage = 'Transaction cancelled by user'
+          } else if (error.message.includes('network') || error.message.includes('connection')) {
+            errorMessage = 'Network error. Please check your connection.'
+          } else if (error.message.includes('execution reverted')) {
+            errorMessage = 'Transaction reverted. Check contract requirements.'
+          } else {
+            errorMessage = error.message
+          }
+        } else if (error?.shortMessage) {
+          errorMessage = error.shortMessage
+        }
+        
+        toast.error(errorMessage, { id: 'mint', duration: 5000 })
+      },
+    },
+  })
+  
+  const { isLoading: isConfirming, isSuccess, error: txError } = useWaitForTransactionReceipt({
     hash,
   })
+
+  // Show transaction errors
+  useEffect(() => {
+    if (txError) {
+      console.error('Transaction error:', txError)
+      toast.error('Transaction failed. Please try again.', { id: 'mint' })
+    }
+  }, [txError])
+
+  // Validate network
+  useEffect(() => {
+    if (isConnected && !isCorrectNetwork) {
+      toast.error('Please switch to Arc Testnet (Chain ID: 5042002)', {
+        duration: 5000,
+        icon: '⚠️'
+      })
+    }
+  }, [isConnected, isCorrectNetwork, chainId])
 
   const handleMint = () => {
     if (!isConnected) {
       toast.error('Please connect your wallet')
+      return
+    }
+
+    if (!isCorrectNetwork) {
+      toast.error('Please switch to Arc Testnet (Chain ID: 5042002)')
       return
     }
 
@@ -131,29 +267,108 @@ export default function MintPage() {
       return
     }
 
-    if (!mintPrice) {
-      toast.error('Unable to fetch mint price')
+    if (isLoadingPrice) {
+      toast.error('Loading mint price. Please wait...')
       return
     }
 
-    const totalCost = BigInt(mintPrice) * BigInt(quantity)
+    if (!mintPrice) {
+      if (priceError) {
+        console.error('Price error:', priceError)
+        toast.error('Failed to fetch mint price. Please check your network connection and try again.', { duration: 5000 })
+      } else {
+        toast.error('Unable to fetch mint price. Please wait...', { 
+          duration: 3000
+        })
+      }
+      return
+    }
 
-    writeContract({
-      address: NFT_CONTRACT_ADDRESS,
-      abi: NFT_ABI,
-      functionName: 'mint',
-      args: [BigInt(quantity)],
-      value: totalCost,
-    })
+    const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
+    const totalCost = effectivePrice * BigInt(quantity)
+    
+    // Check balance
+    if (balance && balance.value < totalCost) {
+      const needed = formatEther(totalCost)
+      const has = formatEther(balance.value)
+      toast.error(`Insufficient balance. Need ${needed} USDC, but you have ${has} USDC`)
+      return
+    }
 
-    toast.loading('Minting your NFTs...', { id: 'mint' })
+    try {
+      logger.logTransaction('prepare', {
+        quantity,
+        totalCost: totalCost.toString(),
+        totalCostFormatted: formatEther(totalCost),
+        mintPrice: mintPrice ? mintPrice.toString() : 'Using fallback',
+        effectivePrice: effectivePrice.toString(),
+        balance: balance?.value.toString(),
+        balanceFormatted: balance ? formatEther(balance.value) : 'N/A',
+        contractAddress: NFT_CONTRACT_ADDRESS,
+        isCorrectNetwork,
+        chainId,
+      });
+
+      toast.loading('Preparing transaction...', { id: 'mint' })
+
+      logger.logTransaction('send', { quantity, totalCost: totalCost.toString() });
+
+      writeContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: NFT_ABI,
+        functionName: 'mint',
+        args: [BigInt(quantity)],
+        value: totalCost,
+      })
+
+      logger.info('writeContract called, waiting for user confirmation', {
+        component: 'MintPage',
+        action: 'writeContract',
+        data: { quantity, totalCost: totalCost.toString() },
+      });
+    } catch (error: any) {
+      logger.logTransaction('error', { error });
+      toast.error(error.message || 'Failed to mint NFTs', { id: 'mint' })
+    }
   }
 
-  if (isSuccess) {
-    toast.success('NFTs minted successfully!', { id: 'mint' })
-  }
+  // Handle success with comprehensive logging
+  useEffect(() => {
+    if (isSuccess && hash) {
+      logger.logTransaction('success', { hash });
+      toast.success('NFTs minted successfully!', { id: 'mint', duration: 5000 })
+      setQuantity(1)
+    }
+  }, [isSuccess, hash])
 
-  const totalCost = mintPrice ? formatEther(BigInt(mintPrice) * BigInt(quantity)) : '0'
+  // Log write errors
+  useEffect(() => {
+    if (writeError) {
+      logger.error('Write error detected', {
+        component: 'MintPage',
+        action: 'writeContract',
+        error: writeError,
+      });
+    }
+  }, [writeError])
+
+  // Log transaction receipt errors
+  useEffect(() => {
+    if (txError) {
+      logger.error('Transaction receipt error', {
+        component: 'MintPage',
+        action: 'waitForTransactionReceipt',
+        error: txError,
+      });
+    }
+  }, [txError])
+
+  // Fallback price if contract read fails (0.01 USDC = 0.01 ether)
+  const FALLBACK_PRICE = parseEther('0.01')
+  const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
+  const totalCostWei = effectivePrice * BigInt(quantity)
+  const totalCost = formatEther(totalCostWei)
+  const pricePerNFT = formatEther(effectivePrice)
   // Calculate remaining - default to maxSupply if totalSupply is 0 or undefined
   const remaining = maxSupply 
     ? (totalSupply !== undefined ? Number(maxSupply) - Number(totalSupply) : Number(maxSupply))
@@ -205,7 +420,46 @@ export default function MintPage() {
             <p className="text-xl text-gray-300">Own a piece of digital art on Arc Testnet</p>
           </div>
 
+          {/* Network Warning */}
+          {isConnected && !isCorrectNetwork && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-effect rounded-2xl p-4 border-2 border-red-500/50 bg-red-500/20 mb-6"
+            >
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-red-400 font-semibold mb-1">Wrong Network</p>
+                  <p className="text-gray-300 text-sm">
+                    Please switch to <strong>Arc Testnet</strong> (Chain ID: 5042002) to mint NFTs.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {/* Balance Card */}
+            {isConnected && balance && (
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="glass-effect rounded-2xl p-6 border border-purple-500/30"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm mb-1">Your Balance</p>
+                    <p className="text-2xl font-bold text-white">
+                      {formatEther(balance.value)} <span className="text-lg text-purple-400">USDC</span>
+                    </p>
+                  </div>
+                  <div className="p-3 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl">
+                    <Image className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Supply Card */}
             <motion.div
               whileHover={{ scale: 1.02, y: -5 }}
@@ -240,8 +494,22 @@ export default function MintPage() {
             >
               <div className="text-sm text-gray-400 mb-2">Price per NFT</div>
               <div className="text-3xl font-bold text-yellow-400">
-                {mintPrice ? formatEther(mintPrice) : '0.01'} USDC
+                {pricePerNFT} USDC
+                {!mintPrice && isLoadingPrice && (
+                  <span className="text-sm text-gray-400 ml-2">(Loading...)</span>
+                )}
+                {!mintPrice && !isLoadingPrice && priceError && (
+                  <span className="text-sm text-yellow-400 ml-2" title={priceError.message}>⚠️ Using fallback</span>
+                )}
+                {mintPrice && (
+                  <span className="text-sm text-green-400 ml-2">✓ Live</span>
+                )}
               </div>
+              {priceError && (
+                <div className="text-xs text-yellow-400 mt-2">
+                  Using fallback price (contract read failed)
+                </div>
+              )}
             </motion.div>
           </div>
 
@@ -301,8 +569,11 @@ export default function MintPage() {
               <div className="flex justify-between items-center">
                 <span className="text-gray-300 text-lg">Total Cost</span>
                 <span className="text-3xl font-bold text-white">
-                  {totalCost} USDC
+                  {totalCost || '0.01'} USDC
                 </span>
+              </div>
+              <div className="text-xs text-gray-400 mt-2 text-center">
+                {quantity} × {pricePerNFT} USDC = {totalCost || '0.01'} USDC
               </div>
             </div>
 
@@ -311,7 +582,7 @@ export default function MintPage() {
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleMint}
-              disabled={isPending || isConfirming || (!isMintingEnabled && !isLoadingMintingStatus) || (remaining !== undefined && remaining <= 0)}
+              disabled={isPending || isConfirming || !isCorrectNetwork || (!isMintingEnabled && !isLoadingMintingStatus) || (remaining !== undefined && remaining <= 0) || (balance && balance.value < BigInt(effectivePrice) * BigInt(quantity))}
               className="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-xl font-bold shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
               {isPending || isConfirming ? (

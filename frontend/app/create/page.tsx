@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId } from 'wagmi'
-import { formatEther } from 'viem'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance } from 'wagmi'
+import { formatEther, parseEther } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Upload, Image as ImageIcon, Loader2, Sparkles, X, FileText, CheckCircle2, AlertCircle, Eye, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { logger } from '@/utils/debugLogger'
 
 const ARC_TESTNET_CHAIN_ID = 5042002
 
@@ -71,33 +72,91 @@ export default function CreatePage() {
   
   // Network validation
   const isCorrectNetwork = chainId === ARC_TESTNET_CHAIN_ID
+  
+  // Get user balance
+  const { data: balance } = useBalance({
+    address,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  })
 
-  const { data: mintPrice } = useReadContract({
+  const { data: mintPrice, isLoading: isLoadingPrice, error: priceError, refetch: refetchPrice } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'MINT_PRICE',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 5,
+      retryDelay: 2000,
+      refetchInterval: 15000,
+      staleTime: 30000,
     },
   })
 
-  const { data: totalSupply } = useReadContract({
+  // Debug price fetching
+  useEffect(() => {
+    console.log('🔍 Price fetch status:', {
+      isLoadingPrice,
+      hasPrice: !!mintPrice,
+      price: mintPrice ? formatEther(mintPrice) : 'N/A',
+      error: priceError?.message,
+      contractAddress: NFT_CONTRACT_ADDRESS,
+      isCorrectNetwork,
+      chainId,
+    })
+    
+    if (priceError) {
+      console.error('❌ Error fetching mint price:', priceError)
+      console.error('Error details:', {
+        name: priceError?.name,
+        message: priceError?.message,
+        cause: priceError?.cause,
+        shortMessage: priceError?.shortMessage,
+      })
+    }
+    if (mintPrice) {
+      console.log('✅ Mint price fetched:', mintPrice.toString(), 'wei =', formatEther(mintPrice), 'USDC')
+    }
+  }, [mintPrice, priceError, isLoadingPrice, isCorrectNetwork, chainId])
+
+  const { data: totalSupply, error: totalSupplyError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'totalSupply',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 3,
+      staleTime: 30000,
     },
   })
 
-  const { data: maxSupply } = useReadContract({
+  const { data: maxSupply, error: maxSupplyError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     functionName: 'MAX_SUPPLY',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
+      retry: 3,
+      staleTime: 30000,
     },
   })
+
+  // Log contract reads
+  useEffect(() => {
+    if (totalSupply !== undefined) {
+      logger.logContractRead('totalSupply', 'success', { result: totalSupply.toString() });
+    }
+    if (totalSupplyError) {
+      logger.logContractRead('totalSupply', 'error', { error: totalSupplyError });
+    }
+    if (maxSupply !== undefined) {
+      logger.logContractRead('MAX_SUPPLY', 'success', { result: maxSupply.toString() });
+    }
+    if (maxSupplyError) {
+      logger.logContractRead('MAX_SUPPLY', 'error', { error: maxSupplyError });
+    }
+  }, [totalSupply, maxSupply, totalSupplyError, maxSupplyError])
 
   const { data: mintingEnabled, refetch: refetchMintingStatus, isLoading: isLoadingMintingStatus } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
@@ -112,10 +171,60 @@ export default function CreatePage() {
 
   const isMintingEnabled = isLoadingMintingStatus ? true : (mintingEnabled !== false)
 
-  const { writeContract, data: hash, isPending } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { writeContract, data: hash, isPending, error: writeError, reset } = useWriteContract({
+    mutation: {
+      onSuccess: (data) => {
+        logger.logTransaction('confirm', { hash: data });
+        toast.loading('Transaction sent! Waiting for confirmation...', { id: 'create' })
+      },
+      onError: (error: any) => {
+        logger.logTransaction('error', { 
+          error: {
+            name: error?.name,
+            message: error?.message,
+            cause: error?.cause,
+            shortMessage: error?.shortMessage,
+          }
+        });
+        
+        let errorMessage = 'Transaction failed'
+        
+        if (error?.message) {
+          if (error.message.includes('insufficient funds') || error.message.includes('balance')) {
+            errorMessage = 'Insufficient USDC balance. Please add more USDC to your wallet.'
+          } else if (error.message.includes('user rejected') || error.message.includes('User denied') || error.message.includes('rejected')) {
+            errorMessage = 'Transaction cancelled by user'
+          } else if (error.message.includes('network') || error.message.includes('connection')) {
+            errorMessage = 'Network error. Please check your connection.'
+          } else if (error.message.includes('execution reverted')) {
+            errorMessage = 'Transaction reverted. Check contract requirements.'
+          } else {
+            errorMessage = error.message
+          }
+        } else if (error?.shortMessage) {
+          errorMessage = error.shortMessage
+        }
+        
+        toast.error(errorMessage, { id: 'create', duration: 5000 })
+      },
+    },
+  })
+  
+  const { isLoading: isConfirming, isSuccess, error: txError } = useWaitForTransactionReceipt({
     hash,
   })
+
+  // Show transaction errors with comprehensive logging
+  useEffect(() => {
+    if (txError) {
+      logger.error('Transaction receipt error', {
+        component: 'CreatePage',
+        action: 'waitForTransactionReceipt',
+        error: txError,
+      });
+      toast.error('Transaction failed. Please try again.', { id: 'create' })
+    }
+  }, [txError])
 
   // Validate network on mount and when chain changes
   useEffect(() => {
@@ -172,26 +281,52 @@ export default function CreatePage() {
   }
 
   const uploadToIPFS = async (): Promise<string> => {
-    // Create comprehensive metadata following OpenSea standard
-    const metadata = {
-      name: name || 'Untitled NFT',
-      description: description || 'A unique NFT created on Arc Testnet',
-      image: image || imageUrl || 'https://via.placeholder.com/500',
-      external_url: externalUrl || undefined,
-      attributes: validAttributes.length > 0 ? validAttributes.map(attr => ({
-        trait_type: attr.trait_type,
-        value: attr.value
-      })) : undefined,
+    try {
+      logger.logMetadata('start', {
+        name: name,
+        hasImage: !!(image || imageUrl),
+        attributesCount: validAttributes.length,
+      });
+
+      // Validate required fields
+      if (!name.trim()) {
+        throw new Error('NFT name is required');
+      }
+
+      // Create comprehensive metadata following OpenSea standard
+      const metadata: any = {
+        name: name.trim(),
+        description: description.trim() || 'A unique NFT created on Arc Testnet',
+        image: image || imageUrl || 'https://via.placeholder.com/500',
+      };
+
+      // Add optional fields
+      if (externalUrl && externalUrl.trim()) {
+        metadata.external_url = externalUrl.trim();
+      }
+
+      if (validAttributes.length > 0) {
+        metadata.attributes = validAttributes.map(attr => ({
+          trait_type: attr.trait_type.trim(),
+          value: attr.value.trim()
+        }));
+      }
+
+      // Create data URI with proper encoding
+      const jsonString = JSON.stringify(metadata, null, 2);
+      const base64 = btoa(unescape(encodeURIComponent(jsonString)));
+      const dataURI = `data:application/json;base64,${base64}`;
+
+      logger.logMetadata('success', {
+        uriLength: dataURI.length,
+        metadataSize: jsonString.length,
+      });
+
+      return dataURI;
+    } catch (error: any) {
+      logger.logMetadata('error', { error });
+      throw error;
     }
-    
-    // Remove undefined fields
-    Object.keys(metadata).forEach(key => 
-      metadata[key as keyof typeof metadata] === undefined && delete metadata[key as keyof typeof metadata]
-    )
-    
-    // For now, return a data URI (in production, upload to IPFS)
-    // You can integrate with Pinata, NFT.Storage, or Web3.Storage here
-    return `data:application/json;base64,${btoa(JSON.stringify(metadata))}`
   }
 
   const handleCreateNFT = async () => {
@@ -226,36 +361,119 @@ export default function CreatePage() {
       return
     }
 
+    if (isLoadingPrice) {
+      toast.error('Loading mint price. Please wait...')
+      return
+    }
+
+    if (!mintPrice) {
+      if (priceError) {
+        console.error('Price error:', priceError)
+        toast.error('Failed to fetch mint price. Please check your network connection and try again.', { duration: 5000 })
+      } else {
+        toast.error('Unable to fetch mint price. Please wait...', { 
+          duration: 3000
+        })
+      }
+      return
+    }
+
+    const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
+    const mintCost = effectivePrice
+    
+    // Check balance
+    if (balance && balance.value < mintCost) {
+      const needed = formatEther(mintCost)
+      const has = formatEther(balance.value)
+      toast.error(`Insufficient balance. Need ${needed} USDC, but you have ${has} USDC`)
+      return
+    }
+
     try {
       toast.loading('Preparing your NFT metadata...', { id: 'create' })
       
       const tokenURI = await uploadToIPFS()
-      console.log('Metadata URI created:', tokenURI)
+      
+      if (!tokenURI || tokenURI.length === 0) {
+        throw new Error('Failed to create metadata URI');
+      }
 
-      toast.loading('Confirm transaction in your wallet...', { id: 'create' })
+      logger.logTransaction('prepare', {
+        tokenURI: tokenURI.substring(0, 100) + '...',
+        tokenURILength: tokenURI.length,
+        mintCost: mintCost.toString(),
+        mintCostFormatted: formatEther(mintCost),
+        balance: balance?.value.toString(),
+        balanceFormatted: balance ? formatEther(balance.value) : 'N/A',
+        contractAddress: NFT_CONTRACT_ADDRESS,
+        isCorrectNetwork,
+        chainId,
+        name,
+        hasImage: !!(image || imageUrl),
+        attributesCount: validAttributes.length,
+      });
+
+      toast.loading('Preparing transaction...', { id: 'create' })
+
+      logger.logTransaction('send', { 
+        functionName: 'mintWithURI',
+        mintCost: mintCost.toString(),
+      });
 
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NFT_ABI,
         functionName: 'mintWithURI',
         args: [tokenURI],
-        value: BigInt(mintPrice || '0'),
+        value: mintCost,
       })
+
+      logger.info('writeContract called, waiting for user confirmation', {
+        component: 'CreatePage',
+        action: 'writeContract',
+        data: { tokenURILength: tokenURI.length, mintCost: mintCost.toString() },
+      });
     } catch (error: any) {
-      console.error('Mint error:', error)
+      logger.logTransaction('error', { error });
       toast.error(error.message || 'Failed to create NFT', { id: 'create' })
     }
   }
 
-  if (isSuccess) {
-    toast.success('NFT created successfully!', { id: 'create' })
-  }
+  // Handle success with comprehensive logging
+  useEffect(() => {
+    if (isSuccess && hash) {
+      logger.logTransaction('success', { hash });
+      toast.success('NFT created successfully!', { id: 'create', duration: 5000 })
+      // Reset the form
+      setName('')
+      setDescription('')
+      setImage(null)
+      setImageFile(null)
+      setImageUrl('')
+      setAttributes([{ trait_type: '', value: '' }])
+      setExternalUrl('')
+    }
+  }, [isSuccess, hash])
+
+  // Log write errors
+  useEffect(() => {
+    if (writeError) {
+      logger.error('Write error detected', {
+        component: 'CreatePage',
+        action: 'writeContract',
+        error: writeError,
+      });
+    }
+  }, [writeError])
 
   // Calculate remaining - default to maxSupply if totalSupply is 0 or undefined
   const remaining = maxSupply 
     ? (totalSupply !== undefined ? Number(maxSupply) - Number(totalSupply) : Number(maxSupply))
     : 10000 // Default to 10,000 if maxSupply not loaded yet
-  const price = mintPrice ? formatEther(mintPrice) : '0.01'
+  // Fallback price if contract read fails (0.01 USDC = 0.01 ether)
+  const FALLBACK_PRICE = parseEther('0.01')
+  const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
+  const price = formatEther(effectivePrice)
 
   if (!isConnected) {
     return (
@@ -547,9 +765,30 @@ export default function CreatePage() {
               >
                 <h3 className="text-white font-bold text-lg mb-4">Summary</h3>
                 <div className="space-y-3">
+                  {isConnected && balance && (
+                    <div className="mb-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                      <div className="text-xs text-gray-400 mb-1">Your Balance</div>
+                      <div className="text-lg font-bold text-white">
+                        {formatEther(balance.value)} <span className="text-sm text-purple-400">USDC</span>
+                      </div>
+                      {balance.value < BigInt(effectivePrice) && (
+                        <div className="text-xs text-red-400 mt-1">
+                          ⚠️ Insufficient balance
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex justify-between text-gray-300">
                     <span>Price</span>
-                    <span className="text-white font-semibold">{price} USDC</span>
+                    <span className="text-white font-semibold">
+                      {price || '0.01'} USDC
+                      {!mintPrice && !isLoadingPrice && (
+                        <span className="text-xs text-yellow-400 ml-2">(Fallback)</span>
+                      )}
+                      {mintPrice && (
+                        <span className="text-xs text-green-400 ml-2">✓</span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between text-gray-300">
                     <span>Remaining</span>
@@ -558,7 +797,7 @@ export default function CreatePage() {
                   <div className="pt-3 border-t border-white/10">
                     <div className="flex justify-between text-lg">
                       <span className="text-white font-semibold">Total</span>
-                      <span className="text-purple-400 font-bold">{price} USDC</span>
+                      <span className="text-purple-400 font-bold">{price || '0.01'} USDC</span>
                     </div>
                   </div>
                 </div>
@@ -569,7 +808,7 @@ export default function CreatePage() {
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleCreateNFT}
-                disabled={isPending || isConfirming || !isMintingEnabled || !isCorrectNetwork || (remaining !== undefined && remaining <= 0) || !name.trim() || (!image && !imageUrl)}
+                disabled={isPending || isConfirming || !isMintingEnabled || !isCorrectNetwork || (remaining !== undefined && remaining <= 0) || !name.trim() || (!image && !imageUrl) || (balance && balance.value < BigInt(effectivePrice))}
                 className="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-xl font-bold shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
                 {isPending || isConfirming ? (

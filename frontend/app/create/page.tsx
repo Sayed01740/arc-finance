@@ -486,9 +486,25 @@ export default function CreatePage() {
     ? (totalSupply !== undefined ? Number(maxSupply) - Number(totalSupply) : Number(maxSupply))
     : 10000 // Default to 10,000 if maxSupply not loaded yet
   // Fallback price if contract read fails (0.01 USDC = 0.01 ether)
+  // This matches the contract's actual MINT_PRICE constant
   const FALLBACK_PRICE = parseEther('0.01')
   const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
   const price = formatEther(effectivePrice)
+  
+  // Log price status
+  useEffect(() => {
+    if (!mintPrice && priceError) {
+      logger.info('Using fallback price (0.01 USDC) - contract read failed', {
+        component: 'CreatePage',
+        action: 'priceDisplay',
+        data: {
+          error: priceError.message,
+          usingFallback: true,
+          fallbackPrice: '0.01 USDC',
+        }
+      });
+    }
+  }, [mintPrice, priceError])
 
   if (!isConnected) {
     return (

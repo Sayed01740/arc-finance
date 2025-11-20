@@ -340,6 +340,11 @@ export default function MintPage() {
     }
 
     try {
+      // Validate contract address before proceeding
+      if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Contract address not configured. Current address: ' + NFT_CONTRACT_ADDRESS + '. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in Vercel environment variables.')
+      }
+
       logger.logTransaction('prepare', {
         quantity,
         totalCost: totalCost.toString(),
@@ -349,6 +354,7 @@ export default function MintPage() {
         balance: balance?.value.toString(),
         balanceFormatted: balance ? formatEther(balance.value) : 'N/A',
         contractAddress: NFT_CONTRACT_ADDRESS,
+        contractAddressValid: NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
         isCorrectNetwork,
         chainId,
       });
@@ -357,12 +363,31 @@ export default function MintPage() {
 
       logger.logTransaction('send', { quantity, totalCost: totalCost.toString() });
 
+      // Validate contract address before sending
+      if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
+      }
+
+      // Estimate gas based on quantity (standard mint is simpler, ~150k per NFT)
+      const estimatedGas = BigInt(quantity) * 150000n + 100000n // Base + per NFT
+
+      logger.info('Sending transaction with gas limit', {
+        component: 'MintPage',
+        action: 'writeContract',
+        data: {
+          contractAddress: NFT_CONTRACT_ADDRESS,
+          gasLimit: estimatedGas.toString(),
+          quantity,
+        }
+      });
+
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NFT_ABI,
         functionName: 'mint',
         args: [BigInt(quantity)],
         value: totalCost,
+        gas: estimatedGas, // Set gas limit explicitly
       })
 
       logger.info('writeContract called, waiting for user confirmation', {

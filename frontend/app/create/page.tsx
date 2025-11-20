@@ -464,12 +464,31 @@ export default function CreatePage() {
         mintCost: mintCost.toString(),
       });
 
+      // Validate contract address before sending
+      if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
+      }
+
+      // Estimate gas for the transaction (data URI can be large)
+      const estimatedGas = tokenURI.length > 10000 ? 500000n : 300000n // Higher gas for large metadata
+
+      logger.info('Sending transaction with gas limit', {
+        component: 'CreatePage',
+        action: 'writeContract',
+        data: {
+          contractAddress: NFT_CONTRACT_ADDRESS,
+          gasLimit: estimatedGas.toString(),
+          tokenURILength: tokenURI.length,
+        }
+      });
+
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NFT_ABI,
         functionName: 'mintWithURI',
         args: [tokenURI],
         value: mintCost,
+        gas: estimatedGas, // Set gas limit explicitly
       })
 
       logger.info('writeContract called, waiting for user confirmation', {

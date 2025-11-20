@@ -365,6 +365,17 @@ export default function CreatePage() {
   }
 
   const handleCreateNFT = async () => {
+    // Validate contract address first
+    if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      toast.error('Contract address not configured. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.', { duration: 8000 })
+      logger.error('Invalid contract address', {
+        component: 'CreatePage',
+        action: 'handleCreateNFT',
+        contractAddress: NFT_CONTRACT_ADDRESS,
+      });
+      return
+    }
+
     // Validation checks
     if (!isConnected) {
       toast.error('Please connect your wallet')

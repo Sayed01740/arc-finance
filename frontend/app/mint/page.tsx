@@ -288,7 +288,7 @@ export default function MintPage() {
       logger.error('Invalid contract address', {
         component: 'MintPage',
         action: 'handleMint',
-        contractAddress: NFT_CONTRACT_ADDRESS,
+        data: { contractAddress: NFT_CONTRACT_ADDRESS },
       });
       return
     }

@@ -371,7 +371,7 @@ export default function CreatePage() {
       logger.error('Invalid contract address', {
         component: 'CreatePage',
         action: 'handleCreateNFT',
-        contractAddress: NFT_CONTRACT_ADDRESS,
+        data: { contractAddress: NFT_CONTRACT_ADDRESS },
       });
       return
     }

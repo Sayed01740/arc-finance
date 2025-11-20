@@ -1,167 +1,121 @@
-# ✅ Deployment Checklist for Vercel
+# Vercel Deployment Checklist
 
-## Pre-Deployment Checklist
+Use this checklist to ensure a smooth deployment to Vercel.
 
-- [x] ✅ All frontend code complete
-- [x] ✅ Next.js configuration optimized for Vercel
-- [x] ✅ Environment variables documented
-- [x] ✅ Build scripts configured
-- [x] ✅ .gitignore configured
-- [x] ✅ Vercel configuration files ready
-- [x] ✅ Smart contracts deployed on Arc testnet
-- [x] ✅ Contract addresses documented
+## Pre-Deployment
 
----
+- [ ] Code is pushed to GitHub repository
+- [ ] All tests pass locally (`npm run build` works)
+- [ ] Contract is deployed on Arc Testnet
+- [ ] Contract address is noted down
+- [ ] Vercel account is created (free tier is fine)
 
-## 🚀 Deployment Steps
+## Deployment Steps
 
-### Step 1: Initialize Git (if not already done)
+### Via Dashboard (Easiest)
 
-```bash
-# From project root (C:\Users\sayed\arc_finance)
-git init
-git add .
-git commit -m "Arc Finance - Complete DEX project ready for deployment"
-git branch -M main
+- [ ] Go to vercel.com and sign in
+- [ ] Click "Add New Project"
+- [ ] Import GitHub repository
+- [ ] Set Root Directory to `frontend`
+- [ ] Add environment variables:
+  - [ ] `NEXT_PUBLIC_ARC_RPC_URL` = `https://rpc.testnet.arc.network`
+  - [ ] `NEXT_PUBLIC_ARC_CHAIN_ID` = `5042002`
+  - [ ] `NEXT_PUBLIC_NFT_CONTRACT_ADDRESS` = `your_contract_address`
+- [ ] Click "Deploy"
+- [ ] Wait for build to complete
+
+### Via CLI
+
+- [ ] Install Vercel CLI: `npm install -g vercel`
+- [ ] Login: `vercel login`
+- [ ] Navigate to frontend: `cd frontend`
+- [ ] Deploy: `vercel --prod`
+- [ ] Set environment variables via CLI or dashboard
+
+## Post-Deployment Testing
+
+- [ ] Site loads at the Vercel URL
+- [ ] Home page displays correctly
+- [ ] Wallet connection works
+- [ ] Network detection shows "Arc Testnet"
+- [ ] Can navigate to /mint page
+- [ ] Can navigate to /create page
+- [ ] Can navigate to /collection page
+- [ ] Can navigate to /admin page
+- [ ] Image upload works on /create
+- [ ] Real-time preview updates correctly
+- [ ] Attributes can be added/removed
+- [ ] Network validation works (shows warning if wrong network)
+- [ ] Minting transaction can be initiated
+- [ ] Transaction confirmation works
+
+## Environment Variables Checklist
+
+Make sure these are set in Vercel:
+
+```
+✅ NEXT_PUBLIC_ARC_RPC_URL=https://rpc.testnet.arc.network
+✅ NEXT_PUBLIC_ARC_CHAIN_ID=5042002
+✅ NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=0x...
 ```
 
-### Step 2: Create GitHub Repository
+**Important**: 
+- Variables must start with `NEXT_PUBLIC_` to be accessible in the browser
+- Set for all environments: Production, Preview, Development
+- Redeploy after adding new variables
 
-1. Go to https://github.com/new
-2. Create a new repository named `arc-finance` (or your preferred name)
-3. **DO NOT** initialize with README, .gitignore, or license (we already have these)
-4. Copy the repository URL
-
-### Step 3: Push to GitHub
-
-```bash
-# Replace YOUR_GITHUB_REPO_URL with your actual repository URL
-git remote add origin YOUR_GITHUB_REPO_URL
-git push -u origin main
-```
-
-### Step 4: Deploy to Vercel
-
-1. **Go to Vercel**: https://vercel.com
-2. **Sign in** with GitHub account
-3. **Click**: "Add New..." → "Project"
-4. **Import** your GitHub repository (`arc-finance`)
-5. **Configure Project**:
-   - **Framework Preset**: Next.js (auto-detected)
-   - **Root Directory**: `frontend` ⚠️ **IMPORTANT!**
-   - **Build Command**: `npm run build` (default)
-   - **Output Directory**: `.next` (default)
-   - **Install Command**: `npm install` (default)
-6. **Click**: "Environment Variables" section
-7. **Add these variables** (set for all environments):
-
-   ```
-   NEXT_PUBLIC_ARC_RPC_URL = https://rpc.testnet.arc.network
-   NEXT_PUBLIC_ARC_CHAIN_ID = 5042002
-   NEXT_PUBLIC_TOKEN_A_ADDRESS = 0xc73768EDfe84d1cd3273a4D79074aD7874eFc0D2
-   NEXT_PUBLIC_TOKEN_B_ADDRESS = 0x20f5f88e3e483595D11f95299411B77061709B9E
-   NEXT_PUBLIC_AMM_ADDRESS = 0xf7E21C3DEAA8D32B4b99bbd5469b32c65F974514
-   ```
-
-8. **Click**: "Deploy"
-
-### Step 5: Wait for Deployment
-
-- Build time: Usually 2-5 minutes
-- Monitor progress in Vercel dashboard
-- Check build logs for any errors
-
----
-
-## ✅ Post-Deployment Verification
-
-After deployment completes:
-
-- [ ] Visit your Vercel URL: `https://your-project.vercel.app`
-- [ ] Check that the site loads
-- [ ] Test wallet connection
-- [ ] Verify Arc Testnet is accessible
-- [ ] Test a swap (if you have test tokens)
-- [ ] Check browser console for errors
-
----
-
-## 📊 Your Deployed Contract Addresses
-
-All contracts are already deployed on Arc Testnet:
-
-- **Token A**: `0xc73768EDfe84d1cd3273a4D79074aD7874eFc0D2`
-- **Token B**: `0x20f5f88e3e483595D11f95299411B77061709B9E`
-- **AMM**: `0xf7E21C3DEAA8D32B4b99bbd5469b32c65F974514`
-- **Network**: Arc Testnet (Chain ID: 5042002)
-- **RPC**: https://rpc.testnet.arc.network
-- **Explorer**: https://testnet.arcscan.app
-
----
-
-## 🔧 Configuration Summary
-
-### Vercel Settings
-- **Framework**: Next.js 16
-- **Root Directory**: `frontend`
-- **Node Version**: 18+ (auto-detected)
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-
-### Environment Variables Required
-All variables must start with `NEXT_PUBLIC_` to be accessible in the browser.
-
----
-
-## 🐛 Troubleshooting
+## Common Issues & Solutions
 
 ### Build Fails
 - Check build logs in Vercel dashboard
-- Verify all dependencies in `package.json`
-- Ensure root directory is set to `frontend`
+- Ensure all dependencies are in package.json
+- Verify next.config.js is correct
 
 ### Environment Variables Not Working
-- Must start with `NEXT_PUBLIC_`
+- Make sure they start with `NEXT_PUBLIC_`
 - Redeploy after adding variables
-- Check values match deployed contracts
+- Check variable names are exact (case-sensitive)
 
-### Site Not Loading
-- Check Vercel deployment logs
-- Verify build completed successfully
-- Check browser console for errors
+### Wallet Won't Connect
+- Verify network configuration
+- Check RPC URL is accessible
+- Ensure contract address is correct
 
----
+### Wrong Network Warning
+- Verify `NEXT_PUBLIC_ARC_CHAIN_ID` is `5042002`
+- Check wagmi.config.ts
+- Clear browser cache
 
-## 📝 Next Steps After Deployment
+## Quick Deploy Commands
 
-1. **Test Everything**:
-   - Connect wallet
-   - View pool statistics
-   - Try swapping tokens
-   - Add/remove liquidity
+```bash
+# Navigate to frontend
+cd frontend
 
-2. **Share Your DEX**:
-   - Share the Vercel URL
-   - Add Arc Testnet to MetaMask
-   - Provide contract addresses
+# Install Vercel CLI (if not installed)
+npm install -g vercel
 
-3. **Monitor**:
-   - Check Vercel analytics
-   - Monitor transaction logs
-   - Track user activity
+# Login
+vercel login
 
----
+# Deploy to production
+vercel --prod
 
-## 🎉 Success!
+# Or use the automated script
+cd ..
+.\deploy-vercel.ps1
+```
 
-Once deployed, your DEX will be live at:
-- **URL**: `https://your-project-name.vercel.app`
-- **HTTPS**: Enabled automatically
-- **Global CDN**: Fast worldwide access
-- **Auto-Deployments**: Updates on every push to main branch
+## Your Live URL
 
----
+After deployment, your site will be available at:
+- `https://your-project-name.vercel.app`
+- Or your custom domain if configured
 
-**Ready to deploy! 🚀**
+## Need Help?
 
-Follow the steps above and your DEX will be live in minutes!
+- See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed guide
+- Check Vercel docs: https://vercel.com/docs
+- Check build logs in Vercel dashboard
+

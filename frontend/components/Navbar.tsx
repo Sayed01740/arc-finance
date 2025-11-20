@@ -1,121 +1,65 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useAccount, useSwitchChain } from 'wagmi'
-import { Menu, X, Moon, Sun } from 'lucide-react'
+import { useAccount } from 'wagmi'
+import { WalletConnectButton } from './WalletConnectButton'
+import { Sparkles, Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
-import { useTheme } from './ThemeProvider'
-import { arcTestnet } from '@/wagmi.config'
-import toast from 'react-hot-toast'
-import clsx from 'clsx'
-import { WalletConnectButton } from './WalletConnectButton'
-
-const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'Swap', href: '/swap' },
-  { name: 'Limit Order', href: '/limit-order' },
-  { name: 'Liquidity', href: '/liquidity' },
-  { name: 'Farming', href: '/farming' },
-  { name: 'About', href: '/about' },
-]
 
 export function Navbar() {
-  const pathname = usePathname()
-  let theme = 'light'
-  let toggleTheme = () => {}
-  
-  try {
-    const themeContext = useTheme()
-    theme = themeContext.theme
-    toggleTheme = themeContext.toggleTheme
-  } catch (e) {
-    // ThemeProvider not available during SSR
-  }
-  const { address, isConnected, chain } = useAccount()
-  const { switchChain } = useSwitchChain()
+  const { isConnected } = useAccount()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const handleSwitchChain = () => {
-    if (chain?.id !== arcTestnet.id) {
-      switchChain({ chainId: arcTestnet.id })
-      toast.success('Switching to Arc Testnet...')
-    }
-  }
-
+  const navLinks = [
+    { href: '/mint', label: 'Mint', show: isConnected },
+    { href: '/create', label: 'Create', show: isConnected },
+    { href: '/collection', label: 'Collection', show: isConnected },
+    { href: '/admin', label: 'Admin', show: isConnected },
+  ]
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-dark-700 bg-white/80 dark:bg-dark-800/80 backdrop-blur-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-effect border-b border-purple-500/20">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-primary text-white font-bold text-xl">
-              AF
+          <Link href="/" className="flex items-center gap-3 group">
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+              className="p-2 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl"
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+            </motion.div>
+            <div>
+              <div className="text-xl font-black gradient-text">Arc NFT</div>
+              <div className="text-xs text-gray-400 -mt-1">Collection</div>
             </div>
-            <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Arc Finance
-            </span>
           </Link>
-
+          
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={clsx(
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700 hover:text-gray-900 dark:hover:text-gray-100'
-                  )}
-                >
-                  {item.name}
-                </Link>
-              )
-            })}
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.filter(link => link.show).map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="relative text-white/80 hover:text-white font-medium transition-colors group"
+              >
+                {link.label}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 group-hover:w-full transition-all duration-300" />
+              </Link>
+            ))}
+            <WalletConnectButton />
           </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === 'light' ? (
-                <Moon className="w-5 h-5" />
-              ) : (
-                <Sun className="w-5 h-5" />
-              )}
-            </button>
-
-            {/* Wallet Connect & Network Switch */}
-            <div className="flex items-center space-x-2">
-              {isConnected && chain?.id !== arcTestnet.id && (
-                <button
-                  onClick={handleSwitchChain}
-                  className="px-3 py-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors"
-                >
-                  Switch Network
-                </button>
-              )}
-              <WalletConnectButton />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
       </div>
 
@@ -126,27 +70,22 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800"
+            className="md:hidden glass-effect border-t border-purple-500/20"
           >
-            <div className="container mx-auto px-4 py-4 space-y-2">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={clsx(
-                      'block px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                )
-              })}
+            <div className="container mx-auto px-4 py-4 space-y-4">
+              {navLinks.filter(link => link.show).map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-white hover:text-purple-400 font-medium py-2 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="pt-4 border-t border-white/10">
+                <WalletConnectButton />
+              </div>
             </div>
           </motion.div>
         )}

@@ -1,204 +1,213 @@
 'use client'
 
-import { useAccount, useReadContract } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { motion } from 'framer-motion'
-import { TrendingUp, Users, Lock, ArrowRight, ArrowLeftRight, Coins, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/Button'
-import { MetricCard } from '@/components/ui/MetricCard'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
-import { AMM_ABI } from '@/utils/abi'
-import { formatEther, erc20Abi } from 'viem'
-import { useTokenBalances } from '@/hooks/useTokenBalance'
-import { ALL_TOKENS } from '@/utils/tokens'
-import { checkEnvironmentVariables } from '@/utils/checkEnv'
-
-// Check environment variables on mount
-if (typeof window !== 'undefined') {
-  checkEnvironmentVariables()
-}
-
-const AMM_ADDRESS = process.env.NEXT_PUBLIC_AMM_ADDRESS as `0x${string}`
-const TOKEN_A_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`
-const TOKEN_B_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`
+import { ArrowRight, Sparkles, Image, Users, Zap, Shield, Globe, TrendingUp } from 'lucide-react'
 
 export default function Home() {
-  const { isConnected, address } = useAccount()
+  const { isConnected } = useAccount()
 
-  const { data: reserves } = useReadContract({
-    address: AMM_ADDRESS,
-    abi: AMM_ABI,
-    functionName: 'getReserves',
-    query: {
-      refetchInterval: 5000,
-      enabled: !!AMM_ADDRESS,
-    },
-  })
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  }
 
-  // Fetch balances for all tokens
-  const { balances: allBalances } = useTokenBalances(ALL_TOKENS, address)
-
-  // Get specific token balances
-  const tokenABalance = TOKEN_A_ADDRESS ? allBalances[TOKEN_A_ADDRESS.toLowerCase()] : null
-  const tokenBBalance = TOKEN_B_ADDRESS ? allBalances[TOKEN_B_ADDRESS.toLowerCase()] : null
-
-  // Calculate TVL (simplified - using reserves)
-  const tvl = reserves
-    ? (parseFloat(formatEther(reserves[0])) + parseFloat(formatEther(reserves[1]))).toFixed(2)
-    : '0'
-
-  const volume24h = '12.5K' // Mock data
-  const pools = reserves && reserves[0] > BigInt(0) ? 1 : 0
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  }
 
   return (
-    <div className="space-y-12">
-      {/* Hero Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center py-16 px-4"
-      >
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
-          Decentralized Exchange
-          <br />
-          <span className="text-gray-900 dark:text-gray-100">Built on Arc Network</span>
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-          Swap tokens, provide liquidity, and earn rewards with minimal slippage and competitive fees.
-        </p>
-        <div className="flex items-center justify-center space-x-4">
-          {!isConnected ? (
-            <WalletConnectButton />
-          ) : (
-            <Link href="/swap">
-              <Button size="lg" className="text-lg px-8 py-4">
-                Start Swapping <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-          )}
-          <Link href="/liquidity">
-            <Button variant="outline" size="lg" className="text-lg px-8 py-4">
-              Add Liquidity
-            </Button>
-          </Link>
-        </div>
-      </motion.section>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse-slow" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+      </div>
 
-      {/* Metrics */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <MetricCard
-          title="Total Value Locked"
-          value={`$${tvl}K`}
-          subtitle="Across all pools"
-          icon={<Lock className="w-5 h-5" />}
-          trend={{ value: '+12.5%', isPositive: true }}
-        />
-        <MetricCard
-          title="24h Volume"
-          value={`$${volume24h}`}
-          subtitle="Total trading volume"
-          icon={<TrendingUp className="w-5 h-5" />}
-          trend={{ value: '+8.2%', isPositive: true }}
-        />
-        <MetricCard
-          title="Active Pools"
-          value={pools.toString()}
-          subtitle="Liquidity pools"
-          icon={<BarChart3 className="w-5 h-5" />}
-        />
-      </section>
-
-      {/* Features */}
-      <section className="space-y-8">
-        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-gray-100">
-          Key Features
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="relative z-10 container mx-auto px-4 py-20">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="text-center mb-20"
+        >
+          {/* Logo/Badge */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700 hover:shadow-lg transition-shadow"
+            variants={itemVariants}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect mb-8 animate-float"
           >
-            <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-4">
-              <ArrowLeftRight className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Swap</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Trade tokens instantly with low slippage and competitive fees.
-            </p>
-            <Link href="/swap" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
-              Start Swapping →
-            </Link>
+            <Sparkles className="w-5 h-5 text-yellow-400" />
+            <span className="text-sm font-medium text-white">Arc Network • Testnet</span>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700 hover:shadow-lg transition-shadow"
+          {/* Main Heading */}
+          <motion.h1
+            variants={itemVariants}
+            className="text-7xl md:text-8xl lg:text-9xl font-black mb-6 leading-tight"
           >
-            <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-4">
-              <Coins className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Liquidity</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Provide liquidity to earn trading fees and LP rewards.
-            </p>
-            <Link href="/liquidity" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
-              Add Liquidity →
-            </Link>
-          </motion.div>
+            <span className="gradient-text block mb-2">Arc NFT</span>
+            <span className="text-white block">Collection</span>
+          </motion.h1>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700 hover:shadow-lg transition-shadow"
+          {/* Subtitle */}
+          <motion.p
+            variants={itemVariants}
+            className="text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed"
           >
-            <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-4">
-              <Users className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Farming</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Stake LP tokens to earn additional rewards and incentives.
-            </p>
-            <Link href="/farming" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
-              Start Farming →
-            </Link>
-          </motion.div>
-        </div>
-      </section>
+            Create, mint, and own unique digital art on the Arc blockchain.
+            <br />
+            <span className="text-purple-400 font-semibold">Powered by Web3 technology.</span>
+          </motion.p>
 
-      {/* Quick Stats */}
-      {isConnected && (tokenABalance || tokenBBalance) && (
-        <section className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-dark-700">
-          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Your Balances</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {tokenABalance && parseFloat(tokenABalance) > 0 && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Token A</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {parseFloat(tokenABalance).toLocaleString(undefined, {
-                    maximumFractionDigits: 4,
-                  })}
-                </p>
+          {/* CTA Buttons */}
+          <motion.div
+            variants={itemVariants}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+          >
+            {!isConnected ? (
+              <>
+                <WalletConnectButton />
+                <p className="text-gray-400 text-sm sm:ml-4">Connect your wallet to get started</p>
+              </>
+            ) : (
+              <div className="flex items-center gap-4 flex-wrap justify-center">
+                <Link href="/mint">
+                  <motion.button
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl text-lg font-bold shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 overflow-hidden"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5" />
+                      Start Minting
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
+                </Link>
+                <Link href="/create">
+                  <motion.button
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="group relative px-8 py-4 glass-effect text-white rounded-2xl text-lg font-bold border-2 border-purple-500/50 hover:border-purple-400 transition-all duration-300"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Image className="w-5 h-5" />
+                      Create NFT
+                    </span>
+                  </motion.button>
+                </Link>
+                <Link href="/collection">
+                  <motion.button
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-lg font-semibold border border-white/20 transition-all duration-300"
+                  >
+                    My Collection
+                  </motion.button>
+                </Link>
               </div>
             )}
-            {tokenBBalance && parseFloat(tokenBBalance) > 0 && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Token B</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {parseFloat(tokenBBalance).toLocaleString(undefined, {
-                    maximumFractionDigits: 4,
-                  })}
-                </p>
+          </motion.div>
+
+          {/* Stats */}
+          <motion.div
+            variants={itemVariants}
+            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mb-20"
+          >
+            {[
+              { label: 'Total Supply', value: '10,000', icon: TrendingUp },
+              { label: 'Mint Price', value: '0.01 USDC', icon: Zap },
+              { label: 'Network', value: 'Arc Testnet', icon: Globe },
+              { label: 'Security', value: 'Verified', icon: Shield },
+            ].map((stat, index) => (
+              <motion.div
+                key={index}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="glass-effect rounded-2xl p-6 text-center border border-purple-500/20 hover:border-purple-400/50 transition-all"
+              >
+                <stat.icon className="w-8 h-8 text-purple-400 mx-auto mb-3" />
+                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+                <div className="text-sm text-gray-400">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* Features Grid */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto"
+        >
+          {[
+            {
+              icon: Image,
+              title: 'Unique Digital Art',
+              description: 'Each NFT is a one-of-a-kind piece of digital art with verified ownership on the blockchain. Own your favorite pieces forever.',
+              color: 'from-yellow-400 to-orange-500'
+            },
+            {
+              icon: Zap,
+              title: 'Lightning Fast',
+              description: 'Mint NFTs in seconds with our optimized smart contracts. Low gas fees and instant transactions on Arc Network.',
+              color: 'from-pink-400 to-rose-500'
+            },
+            {
+              icon: Users,
+              title: 'Growing Community',
+              description: 'Join thousands of collectors and creators building the future of digital ownership together.',
+              color: 'from-blue-400 to-cyan-500'
+            },
+          ].map((feature, index) => (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              whileHover={{ scale: 1.03, y: -10 }}
+              className="group relative glass-effect rounded-3xl p-8 border border-purple-500/20 hover:border-purple-400/50 transition-all duration-300 overflow-hidden"
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
+              <div className="relative z-10">
+                <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${feature.color} mb-6`}>
+                  <feature.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
+                <p className="text-gray-300 leading-relaxed">{feature.description}</p>
               </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Footer CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.5 }}
+          className="mt-20 text-center"
+        >
+          <div className="glass-effect rounded-3xl p-12 max-w-4xl mx-auto border border-purple-500/30">
+            <h2 className="text-4xl font-bold text-white mb-4">Ready to Start Your NFT Journey?</h2>
+            <p className="text-gray-300 mb-8 text-lg">
+              Connect your wallet and start minting unique NFTs today
+            </p>
+            {!isConnected && (
+              <WalletConnectButton />
             )}
           </div>
-        </section>
-      )}
+        </motion.div>
+      </div>
     </div>
   )
 }

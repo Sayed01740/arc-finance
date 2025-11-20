@@ -2,6 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
 
+// Load environment variables
 dotenv.config();
 
 const config: HardhatUserConfig = {
@@ -17,12 +18,8 @@ const config: HardhatUserConfig = {
   networks: {
     arc: {
       url: process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network",
-      chainId: parseInt(process.env.ARC_CHAIN_ID || "5042002"),
+      chainId: 5042002,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-    },
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      chainId: 31337,
     },
   },
   paths: {

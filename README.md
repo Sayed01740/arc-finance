@@ -1,334 +1,189 @@
-# Arc Finance - AMM DEX on Arc Testnet
+# Arc NFT Mint Website
 
-A complete decentralized exchange (DEX) built on Arc testnet featuring an ERC20 token, Automated Market Maker (AMM) swap contract, and Next.js frontend interface.
-
-## Project Structure
-
-```
-arc_finance/
-├── contracts/              # Solidity smart contracts
-│   ├── TestToken.sol      # ERC20 token contract
-│   ├── SimpleAMM.sol      # AMM swap contract
-│   └── MathHelper.sol     # Price calculation helpers
-├── scripts/                # Hardhat deployment scripts
-│   ├── deployToken.ts     # Deploy token contracts
-│   ├── deployAMM.ts       # Deploy AMM contract
-│   └── addLiquidity.ts    # Add initial liquidity
-├── frontend/               # Next.js frontend application
-│   ├── app/               # Next.js app directory
-│   ├── components/        # React components
-│   ├── utils/             # Utility functions and ABIs
-│   └── wagmi.config.ts    # Wagmi/viem configuration
-├── hardhat.config.ts      # Hardhat configuration
-├── tsconfig.json          # TypeScript config for contracts
-└── package.json           # Root package.json
-```
+A beautiful NFT minting dApp built on Arc Testnet. Mint unique NFTs with a simple, user-friendly interface.
 
 ## Features
 
-### Smart Contracts
-- **TestToken**: Standard ERC20 token with minting capability
-- **SimpleAMM**: Uniswap V2-style AMM with:
-  - `addLiquidity()`: Add tokens to liquidity pool
-  - `removeLiquidity()`: Remove liquidity and receive tokens back
-  - `swapExactTokens()`: Swap tokens using constant product formula (x * y = k)
-  - `getReserves()`: View current pool reserves
-  - `getAmountOut()`: Calculate swap output amount
-  - 0.3% swap fee (built into the formula)
+- 🎨 Beautiful, modern UI with animations
+- 🔐 Secure wallet connection (MetaMask, Coinbase Wallet, Injected)
+- 💰 Mint NFTs with USDC on Arc Testnet
+- 🎨 **Create your own custom NFTs** - Upload images, add names and descriptions
+- 👁️ **Real-time NFT Preview** - See exactly how your NFT will look before minting
+- 🏷️ **Custom Attributes/Traits** - Add unique properties to your NFTs (Color, Rarity, etc.)
+- 🔒 **Network Validation** - Automatically ensures all transactions are on Arc Testnet only
+- 📊 Real-time supply tracking
+- 📦 View your NFT collection
+- ⚡ Fast and responsive
+- 🎯 ERC721 standard NFT contract with custom URI support
+- ✅ Comprehensive error handling and user feedback
 
-### Frontend
-- Wallet connection with wagmi
-- Swap interface with real-time price preview
-- Add/remove liquidity interface
-- Pool statistics display (reserves, price)
-- Automatic chain configuration for Arc testnet
+## Tech Stack
 
-## Prerequisites
+- **Frontend**: Next.js 14, React, TypeScript
+- **Styling**: Tailwind CSS, Framer Motion
+- **Blockchain**: Wagmi, Viem
+- **Network**: Arc Testnet (Chain ID: 5042002)
 
-- Node.js 18+ and npm/yarn
-- MetaMask or compatible Web3 wallet
-- Arc testnet configured in your wallet
-- Private key with testnet tokens (for deployment)
+## Setup
 
-## Installation
-
-### 1. Clone and Install Dependencies
+### 1. Install Dependencies
 
 ```bash
-# Install root dependencies (for contracts)
 npm install
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
+cd frontend && npm install
 ```
 
-### 2. Environment Setup
+### 2. Environment Variables
 
-Create a `.env` file in the root directory:
+Create `.env` file in root:
 
 ```env
+PRIVATE_KEY=your_private_key_here
 ARC_RPC_URL=https://rpc.testnet.arc.network
-ARC_CHAIN_ID=5042002
-PRIVATE_KEY=0x977738ca359f57adaad9c44937bc9a3e1410b53068e7c893762cc1418f6eca79
-
-# After deployment, add contract addresses:
-TOKEN_A_ADDRESS=0x...
-TOKEN_B_ADDRESS=0x...
-AMM_ADDRESS=0x...
-LIQUIDITY_AMOUNT_A=1000
-LIQUIDITY_AMOUNT_B=1000
 ```
 
-Create a `frontend/.env.local` file:
+Create `.env.local` in `frontend/`:
 
 ```env
 NEXT_PUBLIC_ARC_RPC_URL=https://rpc.testnet.arc.network
 NEXT_PUBLIC_ARC_CHAIN_ID=5042002
-NEXT_PUBLIC_TOKEN_A_ADDRESS=0x...
-NEXT_PUBLIC_TOKEN_B_ADDRESS=0x...
-NEXT_PUBLIC_AMM_ADDRESS=0x...
+NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=your_deployed_contract_address
 ```
 
-## Deployment
-
-### Step 1: Compile Contracts
+### 3. Deploy NFT Contract
 
 ```bash
 npm run compile
+npm run deploy
 ```
 
-### Step 2: Deploy Tokens
+Copy the deployed contract address and add it to `frontend/.env.local`
 
-Deploy both test tokens (Token A and Token B):
-
-```bash
-npm run deploy:token
-```
-
-Save the deployed addresses and update your `.env` file:
-- `TOKEN_A_ADDRESS`
-- `TOKEN_B_ADDRESS`
-
-### Step 3: Deploy AMM Contract
-
-Update `.env` with token addresses, then deploy:
-
-```bash
-npm run deploy:amm
-```
-
-Save the AMM address and update both `.env` files:
-- Root `.env`: `AMM_ADDRESS`
-- `frontend/.env.local`: `NEXT_PUBLIC_AMM_ADDRESS`
-
-### Step 4: Add Initial Liquidity
-
-Add initial liquidity to the pool:
-
-```bash
-npm run add-liquidity
-```
-
-Or manually set amounts in `.env`:
-```env
-LIQUIDITY_AMOUNT_A=1000
-LIQUIDITY_AMOUNT_B=1000
-```
-
-## Running the Frontend
-
-### Development
+### 4. Run Development Server
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+Visit `http://localhost:3000`
 
-### Production Build
+## Contract Details
+
+- **Name**: Arc NFT Collection
+- **Symbol**: ARCNFT
+- **Max Supply**: 10,000
+- **Mint Price**: 0.01 USDC
+- **Max Mint Per Tx**: 10
+- **Features**: 
+  - Standard mint (uses base URI)
+  - Custom mint with URI (for user-created NFTs)
+  - Metadata storage support
+
+## Pages
+
+- **/** - Home page with overview and features
+- **/mint** - Mint pre-defined NFTs from the collection
+- **/create** - Create and mint your own custom NFTs with:
+  - Image upload (drag & drop or URL)
+  - Real-time preview
+  - Custom metadata (name, description, external URL)
+  - Attributes/Traits customization
+  - Network validation
+- **/collection** - View your NFT collection
+- **/admin** - Admin panel for contract management (owner only)
+
+## IPFS Integration (Production)
+
+For production use, integrate IPFS for decentralized metadata storage:
+
+- **Pinata** (https://pinata.cloud) - Recommended for easy setup
+- **NFT.Storage** (https://nft.storage) - Free decentralized storage
+- **Web3.Storage** (https://web3.storage) - Simple IPFS API
+
+Update the `uploadToIPFS` function in `frontend/app/create/page.tsx` to use your chosen IPFS service.
+
+Example Pinata integration:
+```typescript
+const uploadToIPFS = async (): Promise<string> => {
+  const formData = new FormData()
+  formData.append('file', imageFile)
+  
+  const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+    method: 'POST',
+    headers: {
+      'pinata_api_key': process.env.NEXT_PUBLIC_PINATA_API_KEY!,
+      'pinata_secret_api_key': process.env.NEXT_PUBLIC_PINATA_SECRET_KEY!,
+    },
+    body: formData,
+  })
+  
+  const { IpfsHash } = await res.json()
+  const imageUrl = `https://gateway.pinata.cloud/ipfs/${IpfsHash}`
+  
+  // Upload metadata
+  const metadata = { name, description, image: imageUrl, attributes }
+  // ... upload metadata to IPFS
+  return `ipfs://${metadataHash}`
+}
+```
+
+## Security Features
+
+- ✅ **Network Validation** - All transactions restricted to Arc Testnet (Chain ID: 5042002)
+- ✅ **Wallet Connection Verification** - Ensures wallet is connected before minting
+- ✅ **Input Validation** - Comprehensive checks for all user inputs
+- ✅ **Error Handling** - User-friendly error messages for all failure cases
+- ✅ **Transaction Confirmation** - Clear feedback during minting process
+
+## Deployment
+
+### Deploy to Vercel
+
+#### Quick Start (Recommended)
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Add New Project"
+   - Import your GitHub repository
+   - Set **Root Directory** to `frontend`
+
+3. **Add Environment Variables** (in Vercel dashboard → Settings → Environment Variables):
+   ```
+   NEXT_PUBLIC_ARC_RPC_URL=https://rpc.testnet.arc.network
+   NEXT_PUBLIC_ARC_CHAIN_ID=5042002
+   NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=your_contract_address_here
+   ```
+
+4. **Deploy**
+   - Click "Deploy"
+   - Wait for build to complete
+   - Your site will be live!
+
+#### Alternative: Use CLI
 
 ```bash
 cd frontend
-npm run build
-npm start
+npm install -g vercel
+vercel login
+vercel --prod
 ```
 
-## Testing Locally (Before Arc Deployment)
+#### Automated Script
 
-### 1. Start Local Hardhat Node
-
-```bash
-npm run node
+```powershell
+.\deploy-vercel.ps1
 ```
 
-This starts a local blockchain at `http://127.0.0.1:8545`
-
-### 2. Deploy to Local Network
-
-```bash
-# Deploy tokens
-hardhat run scripts/deployToken.ts --network localhost
-
-# Deploy AMM (update .env with local addresses)
-hardhat run scripts/deployAMM.ts --network localhost
-
-# Add liquidity
-hardhat run scripts/addLiquidity.ts --network localhost
-```
-
-### 3. Configure Frontend for Local Testing
-
-Update `frontend/.env.local`:
-```env
-NEXT_PUBLIC_ARC_RPC_URL=http://127.0.0.1:8545
-NEXT_PUBLIC_ARC_CHAIN_ID=31337
-```
-
-Add localhost to MetaMask:
-- Network Name: Hardhat Local
-- RPC URL: http://127.0.0.1:8545
-- Chain ID: 31337
-- Currency Symbol: ETH
-
-### 4. Import Test Account
-
-In MetaMask, import the first Hardhat account (found in node output) to test swaps locally.
-
-## Vercel Deployment
-
-### 1. Push to GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
-
-### 2. Deploy to Vercel
-
-1. Go to [vercel.com](https://vercel.com)
-2. Import your GitHub repository
-3. Set root directory to `frontend`
-4. Add environment variables:
-   - `NEXT_PUBLIC_ARC_RPC_URL`
-   - `NEXT_PUBLIC_ARC_CHAIN_ID`
-   - `NEXT_PUBLIC_TOKEN_A_ADDRESS`
-   - `NEXT_PUBLIC_TOKEN_B_ADDRESS`
-   - `NEXT_PUBLIC_AMM_ADDRESS`
-5. Deploy
-
-### 3. Update Environment Variables
-
-In Vercel dashboard:
-- Go to Project Settings → Environment Variables
-- Add all `NEXT_PUBLIC_*` variables
-- Redeploy after adding variables
-
-## Usage
-
-### Swap Tokens
-
-1. Connect your wallet
-2. Select "Swap" tab
-3. Choose token to swap from (A or B)
-4. Enter amount
-5. View estimated output
-6. Click "Approve Token" (first time only)
-7. Click "Swap"
-
-### Add Liquidity
-
-1. Connect your wallet
-2. Select "Liquidity" tab
-3. Enter amounts for both tokens
-4. Click "Add Liquidity"
-5. Approve tokens if needed
-6. Confirm transaction
-
-### Remove Liquidity
-
-1. Connect your wallet
-2. Select "Liquidity" tab
-3. Click "Remove" button
-4. Enter LP token amount
-5. Click "Remove Liquidity"
-6. Receive both tokens back
-
-## Arc Testnet Configuration
-
-Add Arc testnet to MetaMask:
-
-- **Network Name**: Arc Testnet
-- **RPC URL**: https://rpc.testnet.arc.network
-- **Chain ID**: 5042002
-- **Currency Symbol**: USDC
-- **Block Explorer**: https://testnet.arcscan.app
-
-## Contract Functions
-
-### SimpleAMM
-
-- `addLiquidity(uint256 amountA, uint256 amountB, address to)`: Add liquidity, returns LP tokens
-- `removeLiquidity(uint256 liquidity, address to)`: Remove liquidity, returns (amountA, amountB)
-- `swapExactTokens(uint256 amountIn, address tokenIn, address to)`: Swap tokens, returns amountOut
-- `getReserves()`: Returns (reserveA, reserveB)
-- `getAmountOut(uint256 amountIn, address tokenIn)`: Calculate output amount
-
-### TestToken
-
-- `mint(address to, uint256 amount)`: Mint new tokens (for testing)
-- Standard ERC20 functions: `transfer`, `approve`, `transferFrom`, etc.
-
-## Troubleshooting
-
-### "Invalid token address" error
-- Ensure contract addresses in `.env` are correct
-- Verify contracts are deployed on Arc testnet
-
-### Transaction fails
-- Check you have enough gas (USDC tokens)
-- Verify token approvals are set
-- Ensure sufficient token balance
-
-### Frontend not connecting to wallet
-- Ensure MetaMask is installed
-- Verify Arc testnet is added to MetaMask
-- Check browser console for errors
-
-### Build errors
-- Ensure all dependencies are installed
-- Check TypeScript version compatibility
-- Verify environment variables are set
-
-## Security Notes
-
-⚠️ **Important**: 
-- The private key in this repo is for testing only
-- Never commit private keys to production repositories
-- Use environment variables or secure key management for production
-- Test contracts thoroughly before mainnet deployment
+📖 **Full deployment guide**: See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions.
 
 ## License
 
 MIT
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section
-2. Review contract deployment logs
-3. Verify environment configuration
-4. Test on local Hardhat network first
-
-## Future Enhancements
-
-- Fee tiers (currently fixed at 0.3%)
-- Multiple pool support
-- Concentrated liquidity (Uniswap V3 style)
-- Staking rewards
-- Governance token integration

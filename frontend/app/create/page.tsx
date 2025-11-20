@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance } from 'wagmi'
-import { formatEther, parseEther } from 'viem'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance, usePublicClient } from 'wagmi'
+import { formatEther, parseEther, estimateContractGas } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Upload, Image as ImageIcon, Loader2, Sparkles, X, FileText, CheckCircle2, AlertCircle, Eye, Plus, Trash2 } from 'lucide-react'
@@ -78,6 +78,7 @@ interface Attribute {
 export default function CreatePage() {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
+  const publicClient = usePublicClient()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [image, setImage] = useState<string | null>(null)
@@ -475,33 +476,88 @@ export default function CreatePage() {
         throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
       }
 
-      // Estimate gas for the transaction (data URI can be very large)
-      // Base64 encoded data URIs require significant gas for storage
-      // Formula: base gas + (data length * gas per byte)
-      // Storage operations cost ~20k gas per 32 bytes, plus calldata costs
-      const baseGas = 200000n // Base gas for function call
-      const gasPerByte = 16n // Approximate gas per byte of calldata
-      const storageGas = (BigInt(tokenURI.length) * gasPerByte) / 32n // Storage cost
-      const estimatedGas = baseGas + storageGas + (BigInt(tokenURI.length) * 16n)
+      // Estimate gas for the transaction using blockchain estimation when possible
+      let finalGas: bigint
       
-      // Set a minimum and maximum gas limit
-      const minGas = 500000n // Minimum safe gas
-      const maxGas = 5000000n // Maximum gas (5M should be enough for any metadata)
-      const finalGas = estimatedGas < minGas ? minGas : (estimatedGas > maxGas ? maxGas : estimatedGas)
+      try {
+        // Try to get accurate gas estimate from blockchain
+        if (publicClient && address) {
+          logger.info('Estimating gas from blockchain', {
+            component: 'CreatePage',
+            action: 'estimateGas',
+            data: { tokenURILength: tokenURI.length }
+          });
 
-      logger.info('Sending transaction with gas limit', {
+          const estimatedGas = await estimateContractGas(publicClient, {
+            address: NFT_CONTRACT_ADDRESS,
+            abi: NFT_ABI,
+            functionName: 'mintWithURI',
+            args: [tokenURI],
+            value: mintCost,
+            account: address,
+          })
+
+          // Add 20% buffer for safety (gas prices can fluctuate)
+          finalGas = (estimatedGas * 120n) / 100n
+          
+          logger.info('Blockchain gas estimation successful', {
+            component: 'CreatePage',
+            action: 'estimateGas',
+            data: {
+              estimatedGas: estimatedGas.toString(),
+              finalGasWithBuffer: finalGas.toString(),
+              bufferPercent: '20%'
+            }
+          });
+        } else {
+          throw new Error('Public client or address not available')
+        }
+      } catch (estimationError: any) {
+        // Fallback to manual calculation if blockchain estimation fails
+        logger.warn('Blockchain gas estimation failed, using manual calculation', {
+          component: 'CreatePage',
+          action: 'estimateGas',
+          error: estimationError?.message || estimationError,
+        });
+
+        // Manual gas estimation (data URI can be very large)
+        // Base64 encoded data URIs require significant gas for storage
+        // Formula: base gas + (data length * gas per byte)
+        // Storage operations cost ~20k gas per 32 bytes, plus calldata costs
+        const baseGas = 200000n // Base gas for function call
+        const gasPerByte = 16n // Approximate gas per byte of calldata
+        const storageGas = (BigInt(tokenURI.length) * gasPerByte) / 32n // Storage cost
+        const calldataGas = BigInt(tokenURI.length) * 16n // Calldata cost
+        const estimatedGas = baseGas + storageGas + calldataGas
+        
+        // Set a minimum and maximum gas limit
+        const minGas = 500000n // Minimum safe gas
+        const maxGas = 5000000n // Maximum gas (5M should be enough for any metadata)
+        finalGas = estimatedGas < minGas ? minGas : (estimatedGas > maxGas ? maxGas : estimatedGas)
+
+        logger.info('Manual gas calculation applied', {
+          component: 'CreatePage',
+          action: 'estimateGas',
+          data: {
+            estimatedGas: estimatedGas.toString(),
+            finalGas: finalGas.toString(),
+            tokenURILength: tokenURI.length,
+            gasCalculation: {
+              baseGas: baseGas.toString(),
+              storageGas: storageGas.toString(),
+              calldataGas: calldataGas.toString(),
+            }
+          }
+        });
+      }
+
+      logger.info('Final gas limit determined', {
         component: 'CreatePage',
         action: 'writeContract',
         data: {
           contractAddress: NFT_CONTRACT_ADDRESS,
           gasLimit: finalGas.toString(),
-          estimatedGas: estimatedGas.toString(),
           tokenURILength: tokenURI.length,
-          gasCalculation: {
-            baseGas: baseGas.toString(),
-            storageGas: storageGas.toString(),
-            calldataGas: (BigInt(tokenURI.length) * 16n).toString(),
-          }
         }
       });
 

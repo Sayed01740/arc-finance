@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance } from 'wagmi'
-import { parseEther, formatEther } from 'viem'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance, usePublicClient } from 'wagmi'
+import { parseEther, formatEther, estimateContractGas } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Sparkles, Image, Loader2, Minus, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
@@ -80,6 +80,7 @@ const NFT_ABI = [
 export default function MintPage() {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
+  const publicClient = usePublicClient()
   const [quantity, setQuantity] = useState(1)
   
   // Network validation
@@ -368,25 +369,80 @@ export default function MintPage() {
         throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
       }
 
-      // Estimate gas based on quantity (standard mint is simpler)
-      // Each NFT mint requires ~150k-200k gas, plus base transaction cost
-      const baseGas = 100000n // Base transaction gas
-      const gasPerNFT = 200000n // Gas per NFT (safe estimate)
-      const estimatedGas = baseGas + (BigInt(quantity) * gasPerNFT)
+      // Estimate gas for the transaction using blockchain estimation when possible
+      let finalGas: bigint
       
-      // Set a maximum to prevent excessive gas (10 NFTs max = ~2.1M gas)
-      const maxGas = 3000000n // Maximum gas for minting
-      const finalGas = estimatedGas > maxGas ? maxGas : estimatedGas
+      try {
+        // Try to get accurate gas estimate from blockchain
+        if (publicClient && address) {
+          logger.info('Estimating gas from blockchain', {
+            component: 'MintPage',
+            action: 'estimateGas',
+            data: { quantity }
+          });
 
-      logger.info('Sending transaction with gas limit', {
+          const estimatedGas = await estimateContractGas(publicClient, {
+            address: NFT_CONTRACT_ADDRESS,
+            abi: NFT_ABI,
+            functionName: 'mint',
+            args: [BigInt(quantity)],
+            value: totalCost,
+            account: address,
+          })
+
+          // Add 20% buffer for safety (gas prices can fluctuate)
+          finalGas = (estimatedGas * 120n) / 100n
+          
+          logger.info('Blockchain gas estimation successful', {
+            component: 'MintPage',
+            action: 'estimateGas',
+            data: {
+              estimatedGas: estimatedGas.toString(),
+              finalGasWithBuffer: finalGas.toString(),
+              bufferPercent: '20%',
+              quantity,
+            }
+          });
+        } else {
+          throw new Error('Public client or address not available')
+        }
+      } catch (estimationError: any) {
+        // Fallback to manual calculation if blockchain estimation fails
+        logger.warn('Blockchain gas estimation failed, using manual calculation', {
+          component: 'MintPage',
+          action: 'estimateGas',
+          error: estimationError?.message || estimationError,
+        });
+
+        // Manual gas estimation (standard mint is simpler)
+        // Each NFT mint requires ~150k-200k gas, plus base transaction cost
+        const baseGas = 100000n // Base transaction gas
+        const gasPerNFT = 200000n // Gas per NFT (safe estimate)
+        const estimatedGas = baseGas + (BigInt(quantity) * gasPerNFT)
+        
+        // Set a maximum to prevent excessive gas (10 NFTs max = ~2.1M gas)
+        const maxGas = 3000000n // Maximum gas for minting
+        finalGas = estimatedGas > maxGas ? maxGas : estimatedGas
+
+        logger.info('Manual gas calculation applied', {
+          component: 'MintPage',
+          action: 'estimateGas',
+          data: {
+            estimatedGas: estimatedGas.toString(),
+            finalGas: finalGas.toString(),
+            quantity,
+            gasPerNFT: gasPerNFT.toString(),
+          }
+        });
+      }
+
+      logger.info('Final gas limit determined', {
         component: 'MintPage',
         action: 'writeContract',
         data: {
           contractAddress: NFT_CONTRACT_ADDRESS,
           gasLimit: finalGas.toString(),
-          estimatedGas: estimatedGas.toString(),
           quantity,
-          gasPerNFT: gasPerNFT.toString(),
         }
       });
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from 'wagmi'
-import { formatEther, readContract, createPublicClient, http } from 'viem'
+import { formatEther, createPublicClient, http } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Settings, CheckCircle2, XCircle, Loader2, AlertCircle, Shield, TrendingUp, DollarSign } from 'lucide-react'

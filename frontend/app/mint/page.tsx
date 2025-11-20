@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance, usePublicClient } from 'wagmi'
-import { parseEther, formatEther, estimateContractGas } from 'viem'
+import { parseEther, formatEther } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Sparkles, Image, Loader2, Minus, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
@@ -381,7 +381,7 @@ export default function MintPage() {
             data: { quantity }
           });
 
-          const estimatedGas = await estimateContractGas(publicClient, {
+          const estimatedGas = await publicClient.estimateContractGas({
             address: NFT_CONTRACT_ADDRESS,
             abi: NFT_ABI,
             functionName: 'mint',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId, useBalance, usePublicClient } from 'wagmi'
-import { formatEther, parseEther, estimateContractGas } from 'viem'
+import { formatEther, parseEther } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Upload, Image as ImageIcon, Loader2, Sparkles, X, FileText, CheckCircle2, AlertCircle, Eye, Plus, Trash2 } from 'lucide-react'
@@ -488,7 +488,7 @@ export default function CreatePage() {
             data: { tokenURILength: tokenURI.length }
           });
 
-          const estimatedGas = await estimateContractGas(publicClient, {
+          const estimatedGas = await publicClient.estimateContractGas({
             address: NFT_CONTRACT_ADDRESS,
             abi: NFT_ABI,
             functionName: 'mintWithURI',

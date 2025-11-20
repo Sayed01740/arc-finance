@@ -87,12 +87,29 @@ export default function CreatePage() {
     functionName: 'MINT_PRICE',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-      retry: 5,
-      retryDelay: 2000,
-      refetchInterval: 15000,
-      staleTime: 30000,
+      retry: 3,
+      retryDelay: 1000,
+      refetchInterval: 30000,
+      staleTime: 60000,
+      gcTime: 300000, // Keep in cache for 5 minutes
     },
   })
+  
+  // Auto-retry price fetch on error
+  useEffect(() => {
+    if (priceError && !isLoadingPrice) {
+      logger.warn('Price fetch failed, will retry automatically', {
+        component: 'CreatePage',
+        action: 'priceFetchRetry',
+        error: priceError,
+      });
+      // Auto-retry after 5 seconds
+      const timer = setTimeout(() => {
+        refetchPrice();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [priceError, isLoadingPrice, refetchPrice])
 
   // Debug price fetching
   useEffect(() => {
@@ -361,20 +378,18 @@ export default function CreatePage() {
       return
     }
 
-    if (isLoadingPrice) {
-      toast.error('Loading mint price. Please wait...')
-      return
+    // Always use fallback price if contract read fails - don't block minting
+    if (!mintPrice && priceError) {
+      logger.warn('Using fallback price due to contract read error', {
+        component: 'CreatePage',
+        action: 'handleCreateNFT',
+        error: priceError,
+      });
+      // Continue with fallback price - don't block
     }
 
-    if (!mintPrice) {
-      if (priceError) {
-        console.error('Price error:', priceError)
-        toast.error('Failed to fetch mint price. Please check your network connection and try again.', { duration: 5000 })
-      } else {
-        toast.error('Unable to fetch mint price. Please wait...', { 
-          duration: 3000
-        })
-      }
+    if (isLoadingPrice && !mintPrice) {
+      toast.error('Loading mint price. Please wait...', { duration: 2000 })
       return
     }
 

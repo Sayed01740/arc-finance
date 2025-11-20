@@ -81,10 +81,11 @@ export default function MintPage() {
     functionName: 'MINT_PRICE',
     query: {
       enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-      retry: 5,
-      retryDelay: 2000,
-      refetchInterval: 15000,
-      staleTime: 30000,
+      retry: 3,
+      retryDelay: 1000,
+      refetchInterval: 30000,
+      staleTime: 60000,
+      gcTime: 300000, // Keep in cache for 5 minutes
     },
   })
 
@@ -108,6 +109,22 @@ export default function MintPage() {
       });
     }
   }, [mintPrice, priceError, isLoadingPrice])
+  
+  // Auto-retry price fetch on error
+  useEffect(() => {
+    if (priceError && !isLoadingPrice) {
+      logger.warn('Price fetch failed, will retry automatically', {
+        component: 'MintPage',
+        action: 'priceFetchRetry',
+        error: priceError,
+      });
+      // Auto-retry after 5 seconds
+      const timer = setTimeout(() => {
+        refetchPrice();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [priceError, isLoadingPrice, refetchPrice])
 
   const { data: totalSupply, error: totalSupplyError } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
@@ -267,20 +284,18 @@ export default function MintPage() {
       return
     }
 
-    if (isLoadingPrice) {
-      toast.error('Loading mint price. Please wait...')
-      return
+    // Always use fallback price if contract read fails - don't block minting
+    if (!mintPrice && priceError) {
+      logger.warn('Using fallback price due to contract read error', {
+        component: 'MintPage',
+        action: 'handleMint',
+        error: priceError,
+      });
+      // Continue with fallback price - don't block
     }
 
-    if (!mintPrice) {
-      if (priceError) {
-        console.error('Price error:', priceError)
-        toast.error('Failed to fetch mint price. Please check your network connection and try again.', { duration: 5000 })
-      } else {
-        toast.error('Unable to fetch mint price. Please wait...', { 
-          duration: 3000
-        })
-      }
+    if (isLoadingPrice && !mintPrice) {
+      toast.error('Loading mint price. Please wait...', { duration: 2000 })
       return
     }
 
@@ -364,11 +379,27 @@ export default function MintPage() {
   }, [txError])
 
   // Fallback price if contract read fails (0.01 USDC = 0.01 ether)
+  // This matches the contract's actual MINT_PRICE constant
   const FALLBACK_PRICE = parseEther('0.01')
   const effectivePrice = mintPrice ? BigInt(mintPrice.toString()) : FALLBACK_PRICE
   const totalCostWei = effectivePrice * BigInt(quantity)
   const totalCost = formatEther(totalCostWei)
   const pricePerNFT = formatEther(effectivePrice)
+  
+  // Log price status
+  useEffect(() => {
+    if (!mintPrice && priceError) {
+      logger.info('Using fallback price (0.01 USDC) - contract read failed', {
+        component: 'MintPage',
+        action: 'priceDisplay',
+        data: {
+          error: priceError.message,
+          usingFallback: true,
+          fallbackPrice: '0.01 USDC',
+        }
+      });
+    }
+  }, [mintPrice, priceError])
   // Calculate remaining - default to maxSupply if totalSupply is 0 or undefined
   const remaining = maxSupply 
     ? (totalSupply !== undefined ? Number(maxSupply) - Number(totalSupply) : Number(maxSupply))
@@ -507,7 +538,13 @@ export default function MintPage() {
               </div>
               {priceError && (
                 <div className="text-xs text-yellow-400 mt-2">
-                  Using fallback price (contract read failed)
+                  Using fallback price (0.01 USDC) - Retrying...
+                  <button 
+                    onClick={() => refetchPrice()} 
+                    className="ml-2 text-purple-400 hover:text-purple-300 underline"
+                  >
+                    Retry Now
+                  </button>
                 </div>
               )}
             </motion.div>

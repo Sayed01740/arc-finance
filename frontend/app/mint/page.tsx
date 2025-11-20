@@ -282,7 +282,7 @@ export default function MintPage() {
     }
   }, [isConnected, isCorrectNetwork, chainId])
 
-  const handleMint = () => {
+  const handleMint = async () => {
     // Validate contract address first
     if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
       toast.error('Contract address not configured. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.', { duration: 8000 })

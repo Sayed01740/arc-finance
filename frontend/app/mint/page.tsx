@@ -12,7 +12,25 @@ import { logger } from '@/utils/debugLogger'
 
 const ARC_TESTNET_CHAIN_ID = 5042002
 
-const NFT_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`) || '0x610F67164aEDF56a2BE9067CbDF5f85BFFb335d3' as `0x${string}`
+// Get contract address from env or use fallback
+const getContractAddress = (): `0x${string}` => {
+  const envAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+  const fallback = '0x610F67164aEDF56a2BE9067CbDF5f85BFFb335d3' as `0x${string}`
+  
+  // Validate env address - must be valid hex and not zero address
+  if (envAddress && 
+      envAddress !== '0x0000000000000000000000000000000000000000' && 
+      envAddress.startsWith('0x') && 
+      envAddress.length === 42) {
+    return envAddress as `0x${string}`
+  }
+  
+  // Use fallback if env is invalid or missing
+  console.warn('⚠️ Using fallback contract address. Set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in Vercel environment variables.')
+  return fallback
+}
+
+const NFT_CONTRACT_ADDRESS = getContractAddress()
 
 const NFT_ABI = [
   {

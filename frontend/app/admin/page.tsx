@@ -1,14 +1,32 @@
 'use client'
 
-import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
-import { formatEther } from 'viem'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from 'wagmi'
+import { formatEther, readContract, createPublicClient, http } from 'viem'
 import { motion } from 'framer-motion'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { Settings, CheckCircle2, XCircle, Loader2, AlertCircle, Shield, TrendingUp, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const NFT_CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`) || '0x610F67164aEDF56a2BE9067CbDF5f85BFFb335d3' as `0x${string}`
+// Get contract address from env or use fallback
+const getContractAddress = (): `0x${string}` => {
+  const envAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+  const fallback = '0x610F67164aEDF56a2BE9067CbDF5f85BFFb335d3' as `0x${string}`
+  
+  // Validate env address - must be valid hex and not zero address
+  if (envAddress && 
+      envAddress !== '0x0000000000000000000000000000000000000000' && 
+      envAddress.startsWith('0x') && 
+      envAddress.length === 42) {
+    return envAddress as `0x${string}`
+  }
+  
+  // Use fallback if env is invalid or missing
+  console.warn('⚠️ Using fallback contract address. Set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in Vercel environment variables.')
+  return fallback
+}
+
+const NFT_CONTRACT_ADDRESS = getContractAddress()
 
 const NFT_ABI = [
   {
@@ -64,15 +82,64 @@ const NFT_ABI = [
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount()
+  const publicClient = usePublicClient()
+  const [contractOwner, setContractOwner] = useState<string | null>(null)
+  const [isLoadingOwner, setIsLoadingOwner] = useState(true)
+  const [ownerError, setOwnerError] = useState<Error | null>(null)
+  const hasTriedFetch = useRef(false)
 
-  const { data: contractOwner } = useReadContract({
-    address: NFT_CONTRACT_ADDRESS,
-    abi: NFT_ABI,
-    functionName: 'owner',
-    query: {
-      enabled: !!NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-    },
-  })
+  // Direct fetch function - always use our own client
+  const fetchOwner = useCallback(async () => {
+    if (hasTriedFetch.current && contractOwner) {
+      console.log('Owner already fetched, skipping...')
+      return
+    }
+    
+    try {
+      setIsLoadingOwner(true)
+      setOwnerError(null)
+      console.log('=== FETCHING CONTRACT OWNER ===')
+      console.log('Contract address:', NFT_CONTRACT_ADDRESS)
+      
+      // Always create our own client for reliability
+      const rpcUrl = process.env.NEXT_PUBLIC_ARC_RPC_URL || 'https://rpc.testnet.arc.network'
+      console.log('Creating publicClient with RPC:', rpcUrl)
+      
+      const client = createPublicClient({
+        transport: http(rpcUrl, { timeout: 30000 }),
+      })
+      
+      console.log('Calling readContract...')
+      const owner = await client.readContract({
+        address: NFT_CONTRACT_ADDRESS,
+        abi: NFT_ABI,
+        functionName: 'owner',
+      })
+      
+      console.log('✅ Owner fetched successfully:', owner)
+      setContractOwner(owner as string)
+      hasTriedFetch.current = true
+      setIsLoadingOwner(false)
+    } catch (error: any) {
+      console.error('❌ Owner fetch error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+      })
+      setOwnerError(error)
+      setIsLoadingOwner(false)
+      toast.error(`Failed to fetch owner: ${error.message}`)
+    }
+  }, [contractOwner])
+
+  // Fetch owner immediately on mount
+  useEffect(() => {
+    if (!hasTriedFetch.current) {
+      console.log('Component mounted, fetching owner...')
+      fetchOwner()
+    }
+  }, [fetchOwner])
 
   const { data: mintingEnabled, refetch: refetchMintingEnabled } = useReadContract({
     address: NFT_CONTRACT_ADDRESS,
@@ -192,8 +259,40 @@ export default function AdminPage() {
             <p className="text-xl text-gray-300">Manage your NFT contract settings</p>
           </div>
 
+          {/* Loading Owner */}
+          {isLoadingOwner && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-effect rounded-3xl p-6 border border-blue-500/50 mb-8"
+            >
+              <div className="flex items-center gap-4">
+                <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                <div className="flex-1">
+                  <h3 className="text-blue-400 font-bold text-lg mb-2">Loading Contract Owner...</h3>
+                  <p className="text-gray-300 mb-3">
+                    Please wait while we verify contract ownership.
+                  </p>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Contract: <code className="bg-white/10 px-1 py-0.5 rounded">{NFT_CONTRACT_ADDRESS}</code>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    console.log('=== MANUAL REFRESH TRIGGERED ===')
+                    hasTriedFetch.current = false
+                    fetchOwner()
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 underline bg-blue-500/20 px-3 py-2 rounded font-semibold"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Owner Warning */}
-          {!isOwner && (
+          {!isLoadingOwner && !isOwner && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -209,12 +308,40 @@ export default function AdminPage() {
                   <div className="space-y-1 text-sm">
                     <p className="text-gray-400">
                       <span className="font-semibold text-white">Contract Owner:</span>{' '}
-                      <code className="bg-white/10 px-2 py-1 rounded">{contractOwner || 'Loading...'}</code>
+                      {isLoadingOwner ? (
+                        <code className="bg-white/10 px-2 py-1 rounded">Loading...</code>
+                      ) : ownerError ? (
+                        <div className="mt-2 space-y-2">
+                          <code className="bg-red-500/20 px-2 py-1 rounded text-red-400 block">
+                            Error: {ownerError.message || 'Failed to load owner'}
+                          </code>
+                          <button
+                            onClick={() => {
+                              console.log('Manual retry triggered')
+                              hasTriedFetch.current = false
+                              fetchOwner()
+                            }}
+                            className="text-xs text-purple-400 hover:text-purple-300 underline bg-purple-500/20 px-3 py-1 rounded"
+                          >
+                            🔄 Retry Now
+                          </button>
+                        </div>
+                      ) : (
+                        <code className="bg-white/10 px-2 py-1 rounded">{contractOwner || 'Unknown'}</code>
+                      )}
                     </p>
                     <p className="text-gray-400">
                       <span className="font-semibold text-white">Your Address:</span>{' '}
                       <code className="bg-white/10 px-2 py-1 rounded">{address}</code>
                     </p>
+                    {contractOwner && address && (
+                      <p className="text-gray-400 mt-2">
+                        <span className="font-semibold text-white">Match:</span>{' '}
+                        <span className={contractOwner.toLowerCase() === address.toLowerCase() ? 'text-green-400' : 'text-red-400'}>
+                          {contractOwner.toLowerCase() === address.toLowerCase() ? '✅ Yes' : '❌ No'}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -434,6 +434,11 @@ export default function CreatePage() {
     }
 
     try {
+      // Validate contract address before proceeding
+      if (!NFT_CONTRACT_ADDRESS || NFT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Contract address not configured. Current address: ' + NFT_CONTRACT_ADDRESS + '. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in Vercel environment variables.')
+      }
+
       toast.loading('Preparing your NFT metadata...', { id: 'create' })
       
       const tokenURI = await uploadToIPFS()
@@ -450,6 +455,7 @@ export default function CreatePage() {
         balance: balance?.value.toString(),
         balanceFormatted: balance ? formatEther(balance.value) : 'N/A',
         contractAddress: NFT_CONTRACT_ADDRESS,
+        contractAddressValid: NFT_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
         isCorrectNetwork,
         chainId,
         name,

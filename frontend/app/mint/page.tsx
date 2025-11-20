@@ -368,16 +368,25 @@ export default function MintPage() {
         throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
       }
 
-      // Estimate gas based on quantity (standard mint is simpler, ~150k per NFT)
-      const estimatedGas = BigInt(quantity) * 150000n + 100000n // Base + per NFT
+      // Estimate gas based on quantity (standard mint is simpler)
+      // Each NFT mint requires ~150k-200k gas, plus base transaction cost
+      const baseGas = 100000n // Base transaction gas
+      const gasPerNFT = 200000n // Gas per NFT (safe estimate)
+      const estimatedGas = baseGas + (BigInt(quantity) * gasPerNFT)
+      
+      // Set a maximum to prevent excessive gas (10 NFTs max = ~2.1M gas)
+      const maxGas = 3000000n // Maximum gas for minting
+      const finalGas = estimatedGas > maxGas ? maxGas : estimatedGas
 
       logger.info('Sending transaction with gas limit', {
         component: 'MintPage',
         action: 'writeContract',
         data: {
           contractAddress: NFT_CONTRACT_ADDRESS,
-          gasLimit: estimatedGas.toString(),
+          gasLimit: finalGas.toString(),
+          estimatedGas: estimatedGas.toString(),
           quantity,
+          gasPerNFT: gasPerNFT.toString(),
         }
       });
 
@@ -387,7 +396,7 @@ export default function MintPage() {
         functionName: 'mint',
         args: [BigInt(quantity)],
         value: totalCost,
-        gas: estimatedGas, // Set gas limit explicitly
+        gas: finalGas, // Set gas limit explicitly with dynamic calculation
       })
 
       logger.info('writeContract called, waiting for user confirmation', {

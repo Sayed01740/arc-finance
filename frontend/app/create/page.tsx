@@ -475,16 +475,33 @@ export default function CreatePage() {
         throw new Error('Invalid contract address. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in environment variables.')
       }
 
-      // Estimate gas for the transaction (data URI can be large)
-      const estimatedGas = tokenURI.length > 10000 ? 500000n : 300000n // Higher gas for large metadata
+      // Estimate gas for the transaction (data URI can be very large)
+      // Base64 encoded data URIs require significant gas for storage
+      // Formula: base gas + (data length * gas per byte)
+      // Storage operations cost ~20k gas per 32 bytes, plus calldata costs
+      const baseGas = 200000n // Base gas for function call
+      const gasPerByte = 16n // Approximate gas per byte of calldata
+      const storageGas = (BigInt(tokenURI.length) * gasPerByte) / 32n // Storage cost
+      const estimatedGas = baseGas + storageGas + (BigInt(tokenURI.length) * 16n)
+      
+      // Set a minimum and maximum gas limit
+      const minGas = 500000n // Minimum safe gas
+      const maxGas = 5000000n // Maximum gas (5M should be enough for any metadata)
+      const finalGas = estimatedGas < minGas ? minGas : (estimatedGas > maxGas ? maxGas : estimatedGas)
 
       logger.info('Sending transaction with gas limit', {
         component: 'CreatePage',
         action: 'writeContract',
         data: {
           contractAddress: NFT_CONTRACT_ADDRESS,
-          gasLimit: estimatedGas.toString(),
+          gasLimit: finalGas.toString(),
+          estimatedGas: estimatedGas.toString(),
           tokenURILength: tokenURI.length,
+          gasCalculation: {
+            baseGas: baseGas.toString(),
+            storageGas: storageGas.toString(),
+            calldataGas: (BigInt(tokenURI.length) * 16n).toString(),
+          }
         }
       });
 
@@ -494,7 +511,7 @@ export default function CreatePage() {
         functionName: 'mintWithURI',
         args: [tokenURI],
         value: mintCost,
-        gas: estimatedGas, // Set gas limit explicitly
+        gas: finalGas, // Set gas limit explicitly with dynamic calculation
       })
 
       logger.info('writeContract called, waiting for user confirmation', {
